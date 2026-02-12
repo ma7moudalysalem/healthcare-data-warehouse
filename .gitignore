@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+.Python
+env/
+venv/
+.venv/
+
+# Environment variables
+.env
+*.env.local
+
+# IDE & editor config
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Data files (too large for git)
+data/raw/*.csv
+data/raw/*.json
+data/raw/*.parquet
+data/cleaned/*.parquet
+data/gold/*.parquet
+*.parquet
+*.csv
+
+# Synthea output
+src/synthea/output/
+
+# Power BI
+*.pbix
+*.pbit
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Azure
+.azure/
+local.settings.json
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Distribution
+*.tar.gz
+*.whl

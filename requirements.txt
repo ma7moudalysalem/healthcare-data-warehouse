@@ -1,0 +1,42 @@
+# Data Processing
+pandas>=2.1.0
+numpy>=1.25.0
+pyarrow>=14.0.0
+
+# Data Generation
+faker>=20.0.0
+
+# Database (SQL Server)
+sqlalchemy>=2.0.0
+pyodbc>=5.0.0
+pymssql>=2.2.11
+
+# API
+flask>=3.0.0
+requests>=2.31.0
+
+# Spark (local development)
+pyspark>=3.5.0
+delta-spark>=3.0.0
+
+# Visualization
+matplotlib>=3.8.0
+seaborn>=0.13.0
+plotly>=5.18.0
+
+# EDA & Profiling
+ydata-profiling>=4.6.0
+
+# Streaming
+azure-eventhub>=5.11.0
+
+# Azure SDK
+azure-storage-file-datalake>=12.14.0
+azure-identity>=1.15.0
+
+# Testing
+pytest>=7.4.0
+flake8>=6.1.0
+
+# Streamlit (optional)
+streamlit>=1.29.0
