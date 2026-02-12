@@ -1,0 +1,44 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Python
+*.py text diff=python
+*.pyx text diff=python
+
+# SQL
+*.sql text
+
+# Notebooks
+*.ipynb text
+
+# Config
+*.yml text
+*.yaml text
+*.json text
+*.cfg text
+*.ini text
+*.toml text
+
+# Markdown
+*.md text diff=markdown
+
+# Docker
+Dockerfile text
+*.dockerfile text
+
+# Shell scripts
+*.sh text eol=lf
+
+# Windows scripts
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary
+*.parquet binary
+*.pbix binary
+*.pbit binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
