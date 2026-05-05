@@ -1,0 +1,56 @@
+{
+  "$schema": "http://datafactory.azure.com/schemas/2018-06-01/Pipeline.json",
+  "name": "PL_Streaming_Vitals_To_Synapse",
+  "type": "Microsoft.DataFactory/factories/pipelines",
+  "properties": {
+    "description": "Hourly mirror: Delta silver/vitals_minute -> Synapse dw.fact_vital_signs_minute. The actual streaming job runs continuously on a Databricks job cluster; this pipeline only handles the periodic Synapse mirror.",
+    "concurrency": 1,
+    "annotations": ["healthcare-dw", "milestone-3", "streaming"],
+    "activities": [
+      {
+        "name": "Synapse_Copy_Vitals_Minute",
+        "type": "Copy",
+        "policy": { "timeout": "0.01:00:00", "retry": 2 },
+        "inputs":  [{ "referenceName": "DS_Silver_Vitals_Minute", "type": "DatasetReference" }],
+        "outputs": [{ "referenceName": "DS_Synapse_FactVitalSignsMinute", "type": "DatasetReference" }],
+        "typeProperties": {
+          "source": {
+            "type": "DeltaSource",
+            "additionalColumns": []
+          },
+          "sink": {
+            "type": "SqlDWSink",
+            "writeBehavior": "Insert",
+            "allowCopyCommand": true,
+            "preCopyScript": "DELETE FROM dw.fact_vital_signs_minute WHERE minute_start_utc >= DATEADD(HOUR, -2, SYSUTCDATETIME());"
+          },
+          "translator": {
+            "type": "TabularTranslator",
+            "mappings": [
+              { "source": { "name": "minute_start_utc" }, "sink": { "name": "minute_start_utc" } },
+              { "source": { "name": "patient_sk" },       "sink": { "name": "patient_sk" } },
+              { "source": { "name": "hospital_sk" },      "sink": { "name": "hospital_sk" } },
+              { "source": { "name": "device_id" },        "sink": { "name": "device_id" } },
+              { "source": { "name": "bed_number" },       "sink": { "name": "bed_number" } },
+              { "source": { "name": "date_sk" },          "sink": { "name": "date_sk" } },
+              { "source": { "name": "sample_count" },     "sink": { "name": "sample_count" } },
+              { "source": { "name": "heart_rate_avg" },   "sink": { "name": "heart_rate_avg" } },
+              { "source": { "name": "heart_rate_max" },   "sink": { "name": "heart_rate_max" } },
+              { "source": { "name": "heart_rate_min" },   "sink": { "name": "heart_rate_min" } },
+              { "source": { "name": "spo2_avg" },         "sink": { "name": "spo2_avg" } },
+              { "source": { "name": "spo2_min" },         "sink": { "name": "spo2_min" } },
+              { "source": { "name": "systolic_avg" },     "sink": { "name": "systolic_avg" } },
+              { "source": { "name": "diastolic_avg" },    "sink": { "name": "diastolic_avg" } },
+              { "source": { "name": "respiratory_rate_avg" }, "sink": { "name": "respiratory_rate_avg" } },
+              { "source": { "name": "temperature_c_avg" }, "sink": { "name": "temperature_c_avg" } },
+              { "source": { "name": "temperature_c_max" }, "sink": { "name": "temperature_c_max" } },
+              { "source": { "name": "anomaly_event_count" }, "sink": { "name": "anomaly_event_count" } },
+              { "source": { "name": "primary_anomaly_kind" }, "sink": { "name": "primary_anomaly_kind" } }
+            ]
+          }
+        }
+      }
+    ],
+    "folder": { "name": "healthcare-dw/streaming" }
+  }
+}

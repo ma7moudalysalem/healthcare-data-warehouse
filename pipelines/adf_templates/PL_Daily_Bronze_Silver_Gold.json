@@ -1,0 +1,143 @@
+{
+  "$schema": "http://datafactory.azure.com/schemas/2018-06-01/Pipeline.json",
+  "name": "PL_Daily_Bronze_Silver_Gold",
+  "type": "Microsoft.DataFactory/factories/pipelines",
+  "properties": {
+    "description": "Nightly orchestration: copy OLTP -> Bronze, run Databricks Silver, run Databricks Gold staging, then COPY INTO Synapse and refresh KPIs.",
+    "concurrency": 1,
+    "annotations": ["healthcare-dw", "milestone-3"],
+    "parameters": {
+      "RunId": {
+        "type": "String",
+        "defaultValue": "@concat('run-', utcNow('yyyyMMddTHHmmss'))"
+      }
+    },
+    "variables": {
+      "BronzeRoot": {
+        "type": "String",
+        "defaultValue": "abfss://bronze@<ADLS_ACCOUNT>.dfs.core.windows.net"
+      },
+      "SilverRoot": {
+        "type": "String",
+        "defaultValue": "abfss://silver@<ADLS_ACCOUNT>.dfs.core.windows.net"
+      },
+      "GoldRoot": {
+        "type": "String",
+        "defaultValue": "abfss://gold@<ADLS_ACCOUNT>.dfs.core.windows.net"
+      }
+    },
+    "activities": [
+      {
+        "name": "Copy_OLTP_Patient_To_Bronze",
+        "type": "Copy",
+        "policy": { "timeout": "0.02:00:00", "retry": 2, "retryIntervalInSeconds": 60 },
+        "inputs":  [{ "referenceName": "DS_OLTP_Patient",   "type": "DatasetReference" }],
+        "outputs": [{ "referenceName": "DS_Bronze_Patient", "type": "DatasetReference" }],
+        "typeProperties": {
+          "source": { "type": "AzureSqlSource" },
+          "sink":   { "type": "ParquetSink", "storeSettings": { "type": "AzureBlobFSWriteSettings" } }
+        }
+      },
+      {
+        "name": "Copy_OLTP_Encounter_To_Bronze",
+        "type": "Copy",
+        "policy": { "timeout": "0.02:00:00", "retry": 2, "retryIntervalInSeconds": 60 },
+        "dependsOn": [{ "activity": "Copy_OLTP_Patient_To_Bronze", "dependencyConditions": ["Succeeded"] }],
+        "inputs":  [{ "referenceName": "DS_OLTP_Encounter",   "type": "DatasetReference" }],
+        "outputs": [{ "referenceName": "DS_Bronze_Encounter", "type": "DatasetReference" }],
+        "typeProperties": {
+          "source": { "type": "AzureSqlSource" },
+          "sink":   { "type": "ParquetSink", "storeSettings": { "type": "AzureBlobFSWriteSettings" } }
+        }
+      },
+      {
+        "name": "Copy_OLTP_Claim_To_Bronze",
+        "type": "Copy",
+        "policy": { "timeout": "0.02:00:00", "retry": 2, "retryIntervalInSeconds": 60 },
+        "dependsOn": [{ "activity": "Copy_OLTP_Encounter_To_Bronze", "dependencyConditions": ["Succeeded"] }],
+        "inputs":  [{ "referenceName": "DS_OLTP_Claim",   "type": "DatasetReference" }],
+        "outputs": [{ "referenceName": "DS_Bronze_Claim", "type": "DatasetReference" }],
+        "typeProperties": {
+          "source": { "type": "AzureSqlSource" },
+          "sink":   { "type": "ParquetSink", "storeSettings": { "type": "AzureBlobFSWriteSettings" } }
+        }
+      },
+      {
+        "name": "Databricks_Silver_All",
+        "type": "DatabricksNotebook",
+        "policy": { "timeout": "0.04:00:00", "retry": 1 },
+        "dependsOn": [{ "activity": "Copy_OLTP_Claim_To_Bronze", "dependencyConditions": ["Succeeded"] }],
+        "linkedServiceName": { "referenceName": "LS_Databricks", "type": "LinkedServiceReference" },
+        "typeProperties": {
+          "notebookPath": "/Workspace/Repos/healthcare-dw/notebooks/silver_run_all",
+          "baseParameters": {
+            "bronze_root":     { "value": "@variables('BronzeRoot')",     "type": "Expression" },
+            "silver_root":     { "value": "@variables('SilverRoot')",     "type": "Expression" },
+            "quarantine_root": { "value": "@concat(variables('SilverRoot'), '/_quarantine')", "type": "Expression" },
+            "run_id":          { "value": "@pipeline().parameters.RunId", "type": "Expression" }
+          }
+        }
+      },
+      {
+        "name": "Databricks_Gold_Staging",
+        "type": "DatabricksNotebook",
+        "policy": { "timeout": "0.04:00:00", "retry": 1 },
+        "dependsOn": [{ "activity": "Databricks_Silver_All", "dependencyConditions": ["Succeeded"] }],
+        "linkedServiceName": { "referenceName": "LS_Databricks", "type": "LinkedServiceReference" },
+        "typeProperties": {
+          "notebookPath": "/Workspace/Repos/healthcare-dw/notebooks/gold_run_all",
+          "baseParameters": {
+            "silver_root": { "value": "@variables('SilverRoot')", "type": "Expression" },
+            "gold_root":   { "value": "@variables('GoldRoot')",   "type": "Expression" }
+          }
+        }
+      },
+      {
+        "name": "Synapse_Merge_Patient_SCD2",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [{ "activity": "Databricks_Gold_Staging", "dependencyConditions": ["Succeeded"] }],
+        "linkedServiceName": { "referenceName": "LS_Synapse", "type": "LinkedServiceReference" },
+        "typeProperties": { "storedProcedureName": "[dw].[sp_merge_dim_patient_scd2]" }
+      },
+      {
+        "name": "Synapse_Merge_Provider_SCD2",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [{ "activity": "Synapse_Merge_Patient_SCD2", "dependencyConditions": ["Succeeded"] }],
+        "linkedServiceName": { "referenceName": "LS_Synapse", "type": "LinkedServiceReference" },
+        "typeProperties": { "storedProcedureName": "[dw].[sp_merge_dim_provider_scd2]" }
+      },
+      {
+        "name": "Synapse_Copy_Fact_Encounter",
+        "type": "Copy",
+        "policy": { "timeout": "0.02:00:00", "retry": 1 },
+        "dependsOn": [{ "activity": "Synapse_Merge_Provider_SCD2", "dependencyConditions": ["Succeeded"] }],
+        "inputs":  [{ "referenceName": "DS_Gold_Stg_FactEncounter", "type": "DatasetReference" }],
+        "outputs": [{ "referenceName": "DS_Synapse_FactEncounter",  "type": "DatasetReference" }],
+        "typeProperties": {
+          "source": { "type": "ParquetSource" },
+          "sink":   { "type": "SqlDWSink", "preCopyScript": "TRUNCATE TABLE dw.fact_encounter;", "writeBehavior": "Insert", "allowCopyCommand": true }
+        }
+      },
+      {
+        "name": "Synapse_Copy_Fact_Claim",
+        "type": "Copy",
+        "policy": { "timeout": "0.02:00:00", "retry": 1 },
+        "dependsOn": [{ "activity": "Synapse_Copy_Fact_Encounter", "dependencyConditions": ["Succeeded"] }],
+        "inputs":  [{ "referenceName": "DS_Gold_Stg_FactClaim", "type": "DatasetReference" }],
+        "outputs": [{ "referenceName": "DS_Synapse_FactClaim",  "type": "DatasetReference" }],
+        "typeProperties": {
+          "source": { "type": "ParquetSource" },
+          "sink":   { "type": "SqlDWSink", "preCopyScript": "TRUNCATE TABLE dw.fact_claim;", "writeBehavior": "Insert", "allowCopyCommand": true }
+        }
+      },
+      {
+        "name": "Synapse_Refresh_KPI_Daily",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [{ "activity": "Synapse_Copy_Fact_Claim", "dependencyConditions": ["Succeeded"] }],
+        "linkedServiceName": { "referenceName": "LS_Synapse", "type": "LinkedServiceReference" },
+        "typeProperties": { "storedProcedureName": "[dw].[sp_refresh_kpi_daily]" }
+      }
+    ],
+    "folder": { "name": "healthcare-dw" }
+  }
+}

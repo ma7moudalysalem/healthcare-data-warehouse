@@ -1,0 +1,33 @@
+{
+  "$schema": "http://datafactory.azure.com/schemas/2018-06-01/Trigger.json",
+  "name": "TR_Daily_0200_UTC",
+  "type": "Microsoft.DataFactory/factories/triggers",
+  "properties": {
+    "description": "Fires the nightly batch pipeline at 02:00 UTC (04:00 Cairo) when source-system load is lowest.",
+    "annotations": ["healthcare-dw"],
+    "type": "ScheduleTrigger",
+    "typeProperties": {
+      "recurrence": {
+        "frequency": "Day",
+        "interval": 1,
+        "startTime": "2026-01-01T02:00:00Z",
+        "timeZone": "UTC",
+        "schedule": {
+          "hours": [2],
+          "minutes": [0]
+        }
+      }
+    },
+    "pipelines": [
+      {
+        "pipelineReference": {
+          "referenceName": "PL_Daily_Bronze_Silver_Gold",
+          "type": "PipelineReference"
+        },
+        "parameters": {
+          "RunId": "@concat('run-', formatDateTime(utcNow(), 'yyyyMMddTHHmmss'))"
+        }
+      }
+    ]
+  }
+}
