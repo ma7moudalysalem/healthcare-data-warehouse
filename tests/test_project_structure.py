@@ -27,6 +27,9 @@ def test_required_directories_exist():
 def test_required_files_exist():
     expected_files = [
         "README.md",
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "Makefile",
         "requirements.txt",
         ".env.example",
         ".gitignore",
