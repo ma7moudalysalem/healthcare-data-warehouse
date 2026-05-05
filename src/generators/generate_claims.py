@@ -17,7 +17,6 @@ import argparse
 import json
 import random
 import sys
-import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -31,6 +30,7 @@ from .common import (
     ICD10_CODES,
     INSURANCE_CARRIERS,
     RAW_DIR,
+    deterministic_uuid,
     ensure_dirs,
     pick_weighted,
     seed_all,
@@ -96,13 +96,13 @@ def _generate_one(claim_idx: int, start_date: datetime, end_date: datetime) -> d
     decision_lag = timedelta(days=random.randint(2, 35)) if status not in ("submitted", "pending_review") else None
 
     return {
-        "claim_id": str(uuid.uuid4()),
+        "claim_id": deterministic_uuid(),
         "claim_number": f"CLM-{service_date.year}-{claim_idx:08d}",
         # Patient + encounter ids reference Synthea output. They're random
         # uuids here; the Silver join will surface unmatched claims as a DQ
         # signal.
-        "patient_id": str(uuid.uuid4()),
-        "encounter_id": str(uuid.uuid4()),
+        "patient_id": deterministic_uuid(),
+        "encounter_id": deterministic_uuid(),
         "provider_npi": fake.numerify(text="##########"),
         "hospital_code": hospital.code,
         "carrier": carrier,

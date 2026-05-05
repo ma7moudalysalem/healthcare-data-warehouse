@@ -17,7 +17,6 @@ import json
 import os
 import random
 from datetime import date, timedelta
-from pathlib import Path
 
 from faker import Faker
 from flask import Flask, abort, jsonify

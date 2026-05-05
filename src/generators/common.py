@@ -36,10 +36,32 @@ def seed_all(seed: int = DEFAULT_SEED) -> None:
         np.random.seed(seed)
     except ImportError:
         pass
+    try:
+        from faker import Faker
+
+        Faker.seed(seed)
+    except ImportError:
+        pass
 
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def deterministic_uuid() -> str:
+    """UUID4-shaped string sourced from `random` so seeded runs are reproducible.
+
+    `uuid.uuid4()` reads from os.urandom and ignores random.seed(), which
+    breaks deterministic regeneration. Build a v4 UUID by hand using the
+    seeded RNG instead.
+    """
+    bits = random.getrandbits(128)
+    # Stamp version (4) and variant (10xx) bits per RFC 4122 sec 4.1.3 / 4.1.1.
+    bits &= ~(0xF << 76)
+    bits |= 0x4 << 76
+    bits &= ~(0xC << 62)
+    bits |= 0x8 << 62
+    return str(__import__("uuid").UUID(int=bits))
 
 
 def random_datetime_between(start: datetime, end: datetime) -> datetime:
