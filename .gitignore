@@ -35,6 +35,9 @@ data/cleaned/*.parquet
 data/gold/*.parquet
 *.parquet
 *.csv
+# Config CSVs are committed (small, deterministic seeds).
+!config/*.csv
+!tests/fixtures/*.csv
 
 # Synthea output and downloaded jar
 src/synthea/output/
