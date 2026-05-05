@@ -33,7 +33,22 @@ def test_required_files_exist():
         "setup.cfg",
         "docker/docker-compose.yml",
         "docker/Dockerfile.generator",
+        "docker/Dockerfile.streamlit",
         ".github/workflows/ci.yml",
+        # M2 deliverables
+        "sql/ddl/01_oltp_source_schema.sql",
+        "sql/ddl/10_warehouse_schema.sql",
+        "sql/stored_procedures/sp_merge_dim_patient_scd2.sql",
+        "docs/architecture/er_diagram_warehouse.md",
+        "docs/data_dictionary/data_dictionary.md",
+        # M3 deliverables
+        "pipelines/bronze/bronze_ingest.py",
+        "pipelines/silver/silver_common.py",
+        "pipelines/streaming/vitals_streaming.py",
+        "pipelines/adf_templates/PL_Daily_Bronze_Silver_Gold.json",
+        # M4 deliverables
+        "dashboards/streamlit/app.py",
+        "dashboards/powerbi/dax_measures.md",
     ]
     for f in expected_files:
         path = os.path.join(ROOT_DIR, f)
