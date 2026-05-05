@@ -1,5 +1,5 @@
 """Tests for src.generators.simulate_vitals."""
-from src.generators.simulate_vitals import _build_devices, _sample, _maybe_start_anomaly
+from src.generators.simulate_vitals import _build_devices, _sample
 from src.generators.common import seed_all
 
 

@@ -5,7 +5,6 @@ one - but we lint that the files are valid UTF-8, end with a blank line,
 contain the expected GO terminators, and reference the schemas declared
 in the DDL.
 """
-import os
 import re
 from pathlib import Path
 

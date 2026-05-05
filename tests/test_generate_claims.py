@@ -1,6 +1,5 @@
 """Tests for src.generators.generate_claims."""
 import json
-import os
 from pathlib import Path
 
 from src.generators.generate_claims import _generate_one, generate

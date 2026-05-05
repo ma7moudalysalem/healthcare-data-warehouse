@@ -193,7 +193,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--silver-root", required=True)
     parser.add_argument("--gold-root", required=True)
     parser.add_argument("--hospital-seed-csv", required=True,
-                        help="Path to hospital_seed.csv with hospital_code,hospital_name,city,governorate,bed_count,is_clinic")
+                        help="Path to hospital_seed.csv (columns: hospital_code, "
+                             "hospital_name, city, governorate, bed_count, is_clinic).")
     parser.add_argument("--only", default=None,
                         help="comma list: dim_patient,dim_hospital,dim_provider,fact_encounter,fact_claim")
     args = parser.parse_args(argv)

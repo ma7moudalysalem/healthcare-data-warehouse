@@ -4,11 +4,9 @@ These run only if PySpark is importable. The CI marks PySpark as optional
 to keep the unit-test step on a small runner; the Spark tests run on the
 nightly job.
 """
-import importlib
-
 import pytest
 
-pyspark = pytest.importorskip("pyspark")
+pyspark = pytest.importorskip("pyspark")  # noqa: F841
 
 
 @pytest.fixture(scope="module")
