@@ -32,5 +32,15 @@ services:
     ports:
       - "5000:5000"
 
+  streamlit:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.streamlit
+    container_name: healthcare_streamlit
+    environment:
+      HCDW_DEMO_MODE: "1"
+    ports:
+      - "8501:8501"
+
 volumes:
   sqlserver_data:
