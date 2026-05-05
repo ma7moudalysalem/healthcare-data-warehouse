@@ -36,8 +36,9 @@ data/gold/*.parquet
 *.parquet
 *.csv
 
-# Synthea output
+# Synthea output and downloaded jar
 src/synthea/output/
+src/synthea/synthea-with-dependencies.jar
 
 # Power BI
 *.pbix
@@ -67,3 +68,15 @@ htmlcov/
 # Distribution
 *.tar.gz
 *.whl
+
+# LaTeX build artifacts
+*.aux
+*.idx
+*.lof
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
