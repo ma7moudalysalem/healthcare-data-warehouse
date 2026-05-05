@@ -26,6 +26,7 @@ help:
 	@echo "  gold             - stage Gold parquet"
 	@echo "  demo-data        - build Streamlit demo Parquet fixtures"
 	@echo "  streamlit        - run dashboard (demo mode)"
+	@echo "  demo             - end-to-end local demo (no Azure required)"
 	@echo "  lint test        - flake8 + pytest"
 
 install:
@@ -78,6 +79,9 @@ demo-data:
 
 streamlit:
 	HCDW_DEMO_MODE=1 streamlit run dashboards/streamlit/app.py
+
+demo:
+	$(PY) -m scripts.demo_local
 
 lint:
 	flake8 src/ tests/ pipelines/ --max-line-length=120 --exclude=__pycache__,build,dist
