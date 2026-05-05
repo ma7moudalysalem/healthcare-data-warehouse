@@ -87,6 +87,39 @@ healthcare-data-warehouse/
 | DevOps | Git, GitHub, GitHub Actions (CI/CD), Docker, Docker Compose |
 | Monitoring | Azure Monitor, Log Analytics, Azure Alerts, Application Insights |
 
+## Repository layout (after milestones)
+
+```
+healthcare-data-warehouse/
+├── src/
+│   ├── generators/          # generate_claims.py, simulate_vitals.py, provider_api.py, common.py
+│   └── synthea/             # synthea.properties + run_synthea.py wrapper
+├── notebooks/               # 01_eda_synthea.ipynb + Databricks driver notebooks
+├── sql/
+│   ├── ddl/                 # OLTP (01,02) + Synapse star schema (10,11,12)
+│   ├── queries/             # 12 analytical queries
+│   └── stored_procedures/   # SCD2 merges + daily KPI refresh
+├── pipelines/
+│   ├── load_oltp.py         # Synthea + claims -> SQL Server
+│   ├── bronze/              # Bronze ingest (PySpark, Parquet)
+│   ├── silver/              # Silver transforms (Delta) + DQ + governorate remap
+│   ├── gold/                # Gold staging for Synapse COPY INTO
+│   ├── streaming/           # Spark Structured Streaming for vitals
+│   └── adf_templates/       # ADF pipeline JSON + trigger + README
+├── dashboards/
+│   ├── streamlit/           # 3-page app + demo data builder
+│   └── powerbi/             # DAX measures + report design notes
+├── docs/
+│   ├── architecture/        # OLTP ER + warehouse ER + overview
+│   ├── data_dictionary/     # Column-level reference
+│   ├── monitoring.md        # Alerts + runbook
+│   └── final_report.md      # Project final report
+├── tests/                   # pytest suite (~30 cases)
+├── docker/                  # Dockerfiles + compose for SQL Server / generator / Streamlit
+├── config/                  # hospital_seed.csv (single source of truth for facilities)
+└── Makefile                 # convenience targets
+```
+
 ## Setup & Installation
 
 ### Prerequisites
@@ -130,14 +163,30 @@ healthcare-data-warehouse/
 ### Running Data Generators
 
 ```bash
-# Generate synthetic claims data
-python src/generators/generate_claims.py
+# Generate synthetic claims data (200K rows by default)
+python -m src.generators.generate_claims
 
-# Start vital signs simulator
-python src/generators/simulate_vitals.py
+# Start vital signs simulator (Ctrl+C to stop)
+python -m src.generators.simulate_vitals
 
-# Start provider API
-python src/generators/provider_api.py
+# Start provider API on :5000 + dump providers.json
+python -m src.generators.provider_api
+
+# Synthea (Java 11+ required) - 1K patient smoke run
+python -m src.synthea.run_synthea --population 1000
+```
+
+### One-shot pipeline run (local Spark)
+
+```bash
+make synthea-smoke     # 1K patients
+make claims            # 200K claims jsonl
+make providers &       # background
+make oltp-up oltp-init oltp-load
+make bronze silver gold
+
+# Streamlit (demo-mode, no Synapse needed)
+make demo-data streamlit
 ```
 
 ## Milestones
