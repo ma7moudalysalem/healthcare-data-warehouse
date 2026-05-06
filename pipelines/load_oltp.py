@@ -71,7 +71,11 @@ def _connect():
     port = os.environ.get("MSSQL_PORT", "1433")
     db = os.environ.get("MSSQL_DB", "healthcare_oltp")
     user = os.environ.get("MSSQL_USER", "sa")
-    pwd = os.environ.get("MSSQL_SA_PASSWORD", "YourStrong!Passw0rd")
+    pwd = os.environ.get("MSSQL_SA_PASSWORD")
+    if not pwd:
+        raise SystemExit(
+            "MSSQL_SA_PASSWORD not set. Copy .env.example to .env and configure it."
+        )
 
     conn = pyodbc.connect(
         f"DRIVER={{{driver}}};SERVER={host},{port};DATABASE={db};"
