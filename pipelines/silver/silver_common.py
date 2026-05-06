@@ -119,7 +119,7 @@ def write_delta(df: DataFrame, path: str, mode: str = "overwrite",
 
 def write_quarantine(df: DataFrame, path: str) -> None:
     """Quarantine writes are append-only and partitioned by date."""
-    if df.rdd.isEmpty():
+    if len(df.head(1)) == 0:
         return
     df.withColumn("_quarantine_date", F.to_date(F.current_timestamp())) \
       .write.format("delta") \

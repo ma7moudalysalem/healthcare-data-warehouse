@@ -152,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="Optional run id; defaults to a generated UUID.")
     args = parser.parse_args(argv)
 
-    run_id = args.run_id or f"bronze-{dt.datetime.utcnow():%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
+    run_id = args.run_id or f"bronze-{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
     spark = _spark(f"bronze_ingest:{args.source}")
     try:
         n = SOURCES[args.source](spark, args.input, args.layer_root.rstrip("/"), run_id)
