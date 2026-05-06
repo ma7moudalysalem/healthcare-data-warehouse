@@ -23,7 +23,7 @@ import plotly.express as px
 import streamlit as st
 
 DEMO_DIR = Path(__file__).resolve().parent / "demo_data"
-DEMO_MODE = os.environ.get("HCDW_DEMO_MODE", "0") == "1" or not DEMO_DIR.exists() is False
+DEMO_MODE = os.environ.get("HCDW_DEMO_MODE", "0") == "1" or not DEMO_DIR.exists()
 
 st.set_page_config(
     page_title="Healthcare DW - Clinical Operations",
@@ -106,20 +106,23 @@ PAGES = ["Hospital Operations", "Revenue & Claims", "Live Vital Signs"]
 page = st.sidebar.radio("Page", PAGES)
 
 
-def _filter_clause() -> str:
+def _filter_clause() -> tuple[str, list]:
     bits = []
+    params: list = []
     if selected_hospital != "All":
-        bits.append(f"hospital_name = '{selected_hospital}'")
-    bits.append(f"encounter_date BETWEEN '{from_date}' AND '{to_date}'")
-    return " AND ".join(bits)
+        bits.append("hospital_name = ?")
+        params.append(selected_hospital)
+    bits.append("encounter_date BETWEEN ? AND ?")
+    params.extend([str(from_date), str(to_date)])
+    return " AND ".join(bits), params
 
 
 def page_operations() -> None:
     st.title("Hospital Operations")
     st.caption(f"Window: {from_date} -> {to_date}.  Hospital: {selected_hospital}")
 
-    where = _filter_clause()
-    enc = _query(f"SELECT * FROM dw.vw_encounter_enriched WHERE {where}")
+    where, params = _filter_clause()
+    enc = _query(f"SELECT * FROM dw.vw_encounter_enriched WHERE {where}", tuple(params))
 
     if enc.empty:
         st.info("No encounters in the selected window.")
@@ -129,14 +132,14 @@ def page_operations() -> None:
     with c1:
         _kpi("Encounters", f"{len(enc):,}", "Total encounters in window.")
     with c2:
-        ip = enc[enc["is_inpatient"] == True]
+        ip = enc[enc["is_inpatient"].eq(True)]
         _kpi(
             "Avg LOS (inpatient)",
             f"{ip['length_of_stay_hours'].mean():.1f} h" if not ip.empty else "—",
         )
     with c3:
-        readmit = (enc["is_readmission_30d"] == True).sum()
-        denom = (enc["is_inpatient"] == True).sum()
+        readmit = enc["is_readmission_30d"].eq(True).sum()
+        denom = enc["is_inpatient"].eq(True).sum()
         _kpi(
             "30d readmission %",
             f"{(readmit / denom * 100):.2f}%" if denom else "—",
@@ -176,11 +179,13 @@ def page_operations() -> None:
 def page_revenue() -> None:
     st.title("Revenue & Claims")
 
-    where = " AND ".join([
-        f"service_date BETWEEN '{from_date}' AND '{to_date}'",
-        f"hospital_name = '{selected_hospital}'" if selected_hospital != "All" else "1=1",
-    ])
-    claims = _query(f"SELECT * FROM dw.vw_claim_enriched WHERE {where}")
+    claim_bits = ["service_date BETWEEN ? AND ?"]
+    claim_params: list = [str(from_date), str(to_date)]
+    if selected_hospital != "All":
+        claim_bits.append("hospital_name = ?")
+        claim_params.append(selected_hospital)
+    claim_where = " AND ".join(claim_bits)
+    claims = _query(f"SELECT * FROM dw.vw_claim_enriched WHERE {claim_where}", tuple(claim_params))
     if claims.empty:
         st.info("No claims in the selected window.")
         return
