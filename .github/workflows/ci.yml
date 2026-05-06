@@ -35,11 +35,23 @@ jobs:
       - name: Run pytest (excluding Spark tests)
         run: pytest tests/ -v --tb=short --ignore=tests/test_silver_common.py
 
+  dependency-audit:
+    name: Dependency vulnerability scan
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install pip-audit
+      - run: pip-audit -r requirements.txt
+
   spark-tests:
-    name: Spark tests (optional)
+    name: Spark tests
     runs-on: ubuntu-latest
     needs: unit
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
