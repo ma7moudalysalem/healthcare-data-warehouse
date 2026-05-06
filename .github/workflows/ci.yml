@@ -65,7 +65,7 @@ jobs:
           cache: pip
       - run: pip install sqlfluff
       # tsql dialect is an approximation for Synapse - we accept warnings.
-      - run: sqlfluff lint sql/ --dialect tsql || true
+      - run: sqlfluff lint sql/ --dialect tsql
 
   docs:
     name: Docs / Markdown
