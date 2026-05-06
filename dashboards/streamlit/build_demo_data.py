@@ -92,8 +92,13 @@ def _build_encounters(n: int = 4000) -> pd.DataFrame:
             "facility_type": h[3],
             "hospital_governorate": h[1],
             "bed_count": h[2],
-            "provider_name": f"Dr. {random.choice(['Salem','Hassan','Gamal','Tarek','Reem'])} {random.choice(['Ali','Adel','Ibrahim'])}",
-            "provider_specialty": random.choice(["Internal Medicine", "Cardiology", "Family Medicine", "Emergency Medicine"]),
+            "provider_name": (
+                f"Dr. {random.choice(['Salem', 'Hassan', 'Gamal', 'Tarek', 'Reem'])}"
+                f" {random.choice(['Ali', 'Adel', 'Ibrahim'])}"
+            ),
+            "provider_specialty": random.choice([
+                "Internal Medicine", "Cardiology", "Family Medicine", "Emergency Medicine",
+            ]),
             "primary_icd10_code": dx[0],
             "primary_diagnosis": dx[1],
             "diagnosis_chapter": "Various",
@@ -114,11 +119,13 @@ def _build_claims(n: int = 3500) -> pd.DataFrame:
         st_ = random.choices(statuses, weights=weights, k=1)[0]
         billed = round(random.uniform(50, 5000), 2)
         if st_ == "approved":
-            allowed = round(billed * random.uniform(0.78, 0.95), 2); paid = allowed
+            allowed = round(billed * random.uniform(0.78, 0.95), 2)
+            paid = allowed
         elif st_ == "denied":
             allowed, paid = 0.0, 0.0
         elif st_ == "partially_paid":
-            allowed = round(billed * random.uniform(0.4, 0.7), 2); paid = allowed
+            allowed = round(billed * random.uniform(0.4, 0.7), 2)
+            paid = allowed
         else:
             allowed, paid = 0.0, 0.0
         dx = random.choice(DIAGNOSES)
@@ -164,7 +171,9 @@ def _build_vitals(n_minutes: int = 1440) -> pd.DataFrame:
         for i in range(n_minutes // 50):
             ts = end - timedelta(minutes=random.randint(0, n_minutes))
             anomaly = random.random() < 0.04
-            kind = random.choice(["tachycardia", "bradycardia", "hypoxia", "hypertension", "fever"]) if anomaly else None
+            kind = random.choice([
+                "tachycardia", "bradycardia", "hypoxia", "hypertension", "fever",
+            ]) if anomaly else None
             rows.append({
                 "minute_start_utc": ts,
                 "device_id": d_id,
