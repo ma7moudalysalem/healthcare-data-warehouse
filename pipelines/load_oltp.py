@@ -60,7 +60,7 @@ GOVERNORATE_POOL = [
 ]
 
 
-def _connect():
+def _connect(max_retries: int = 3, backoff_base: float = 2.0):
     try:
         import pyodbc
     except ImportError as e:  # pragma: no cover
@@ -77,13 +77,26 @@ def _connect():
             "MSSQL_SA_PASSWORD not set. Copy .env.example to .env and configure it."
         )
 
-    conn = pyodbc.connect(
+    import time
+    conn_str = (
         f"DRIVER={{{driver}}};SERVER={host},{port};DATABASE={db};"
-        f"UID={user};PWD={pwd};TrustServerCertificate=Yes",
-        autocommit=False,
+        f"UID={user};PWD={pwd};TrustServerCertificate=Yes"
     )
-    conn.timeout = 60
-    return conn
+    for attempt in range(1, max_retries + 1):
+        try:
+            conn = pyodbc.connect(conn_str, autocommit=False)
+            conn.timeout = 60
+            return conn
+        except pyodbc.OperationalError:
+            if attempt == max_retries:
+                raise
+            wait = backoff_base ** attempt
+            print(
+                f"  Connection attempt {attempt}/{max_retries} failed, "
+                f"retrying in {wait:.0f}s ...",
+                file=sys.stderr,
+            )
+            time.sleep(wait)
 
 
 @contextmanager
