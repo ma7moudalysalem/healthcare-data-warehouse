@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11.9-slim-bookworm
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -10,18 +10,22 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN useradd --create-home appuser
+USER appuser
+
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt streamlit-autorefresh
+COPY --chown=appuser requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt streamlit-autorefresh
 
-COPY dashboards/streamlit /app/dashboards/streamlit
-COPY config /app/config
+COPY --chown=appuser dashboards/streamlit /app/dashboards/streamlit
+COPY --chown=appuser config /app/config
 
 EXPOSE 8501
 
-# Demo mode is the default in the container; set HCDW_DEMO_MODE=0 and
-# pass SYNAPSE_* env vars when running against a real warehouse.
 ENV HCDW_DEMO_MODE=1
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
 CMD ["streamlit", "run", "dashboards/streamlit/app.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true"]

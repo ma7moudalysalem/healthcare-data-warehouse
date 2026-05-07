@@ -92,3 +92,41 @@ def test_requirements_has_core_packages():
     ]
     for pkg in core_packages:
         assert pkg in content, f"Missing package: {pkg}"
+
+
+def test_faker_not_imported_in_pipelines():
+    """Faker is a generator dependency only; production pipelines must not import it."""
+    pipelines_dir = os.path.join(ROOT_DIR, "pipelines")
+    violations = []
+    for dirpath, _, filenames in os.walk(pipelines_dir):
+        for fn in filenames:
+            if not fn.endswith(".py"):
+                continue
+            filepath = os.path.join(dirpath, fn)
+            with open(filepath, "r", encoding="utf-8") as f:
+                for i, line in enumerate(f, 1):
+                    if "import faker" in line.lower() or "from faker" in line.lower():
+                        violations.append(f"{filepath}:{i}")
+    assert not violations, f"Faker imported in production pipelines: {violations}"
+
+
+def test_no_secrets_in_source():
+    """Ensure no hardcoded passwords or keys in pipeline/dashboard source."""
+    scan_dirs = [
+        os.path.join(ROOT_DIR, "pipelines"),
+        os.path.join(ROOT_DIR, "dashboards"),
+    ]
+    patterns = ["YourStrong!Passw0rd", "AccountKey=", "SharedAccessSignature="]
+    violations = []
+    for scan_dir in scan_dirs:
+        for dirpath, _, filenames in os.walk(scan_dir):
+            for fn in filenames:
+                if not fn.endswith(".py"):
+                    continue
+                filepath = os.path.join(dirpath, fn)
+                with open(filepath, "r", encoding="utf-8") as f:
+                    content = f.read()
+                for pat in patterns:
+                    if pat in content:
+                        violations.append(f"{filepath}: contains '{pat}'")
+    assert not violations, f"Secrets in source: {violations}"

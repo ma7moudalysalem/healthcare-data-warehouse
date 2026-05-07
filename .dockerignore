@@ -1,0 +1,44 @@
+# Version control
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*.pyo
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Data (generated, large)
+data/
+*.parquet
+*.csv
+
+# Environment / secrets
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing / caching
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Documentation build artifacts
+docs/*.pdf
+docs/*.aux
+docs/*.log
+docs/*.tex

@@ -79,6 +79,25 @@ jobs:
       # tsql dialect is an approximation for Synapse - we accept warnings.
       - run: sqlfluff lint sql/ --dialect tsql
 
+  docker-build:
+    name: Docker build + security scan
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build generator image
+        run: docker build -f docker/Dockerfile.generator -t hcdw-generator:ci .
+      - name: Build streamlit image
+        run: docker build -f docker/Dockerfile.streamlit -t hcdw-streamlit:ci .
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: hcdw-streamlit:ci
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
   docs:
     name: Docs / Markdown
     runs-on: ubuntu-latest

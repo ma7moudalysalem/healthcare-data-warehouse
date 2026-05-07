@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11.9-slim-bookworm
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -12,14 +12,20 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN useradd --create-home appuser
+USER appuser
+
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --chown=appuser requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
 
-COPY src/ ./src/
-COPY config/ ./config/
+COPY --chown=appuser src/ ./src/
+COPY --chown=appuser config/ ./config/
 
 EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
 
 CMD ["python", "src/generators/provider_api.py"]
