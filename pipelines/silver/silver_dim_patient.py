@@ -13,13 +13,15 @@ Run:
 from __future__ import annotations
 
 import argparse
-import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 
+from pipelines.logging_config import get_logger
 from .silver_common import age_band, remap_to_governorate, split_by_rule, write_delta, write_quarantine
+
+log = get_logger(__name__)
 
 
 SCHEMA = T.StructType([
@@ -63,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
         bronze_path = f"{args.bronze_root.rstrip('/')}/synthea_patients"
         # Use the Bronze schema as a type hint, but allow extra columns to pass through.
         df = spark.read.parquet(bronze_path)
-        print(f"Loaded {df.count():,} rows from {bronze_path}", file=sys.stderr)
+        log.info("loaded from bronze", extra={"object_name": "dim_patient", "rows_read": df.count(), "layer": "silver"})
 
         # --- Type enforcement / column rename ---
         df = (
@@ -120,7 +122,8 @@ def main(argv: list[str] | None = None) -> int:
 
         silver_path = f"{args.silver_root.rstrip('/')}/dim_patient"
         write_delta(clean, silver_path, mode="overwrite")
-        print(f"Wrote {clean.count():,} rows to {silver_path}", file=sys.stderr)
+        log.info("wrote dim_patient",
+                 extra={"object_name": "dim_patient", "rows_written": clean.count(), "layer": "silver"})
 
         if rejected_all is not None:
             quarantine_path = f"{args.quarantine_root.rstrip('/')}/dim_patient"

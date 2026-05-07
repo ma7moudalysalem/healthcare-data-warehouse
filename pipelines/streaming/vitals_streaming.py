@@ -27,11 +27,14 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
+
+from pipelines.logging_config import get_logger
+
+log = get_logger(__name__)
 
 
 VITAL_SCHEMA = T.StructType([
@@ -150,7 +153,7 @@ def _write_bronze(stream: DataFrame, root: str, checkpoint_root: str, trigger_s:
               .trigger(processingTime=f"{trigger_s} seconds")
               .start(f"{root}/vitals_stream")
     )
-    print(f"Bronze stream started: {out.id}", file=sys.stderr)
+    log.info("bronze stream started", extra={"run_id": str(out.id), "layer": "bronze"})
 
 
 def _write_silver_minute(stream: DataFrame, root: str, checkpoint_root: str, trigger_s: int) -> None:
@@ -201,7 +204,7 @@ def _write_silver_minute(stream: DataFrame, root: str, checkpoint_root: str, tri
            .trigger(processingTime=f"{trigger_s} seconds")
            .start(f"{root}/vitals_minute")
     )
-    print(f"Silver minute stream started: {out.id}", file=sys.stderr)
+    log.info("silver minute stream started", extra={"run_id": str(out.id), "layer": "silver"})
 
 
 def main(argv: list[str] | None = None) -> int:

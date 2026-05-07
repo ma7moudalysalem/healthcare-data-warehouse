@@ -27,13 +27,16 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import sys
 import uuid
 from pathlib import Path
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
+
+from pipelines.logging_config import get_logger
+
+log = get_logger(__name__)
 
 
 def _spark(app_name: str = "bronze_ingest") -> SparkSession:
@@ -81,7 +84,8 @@ def _ingest_synthea(spark: SparkSession, input_dir: Path, layer_root: str, run_i
               .parquet(target)
         )
         counts[table] = df.count()
-        print(f"  {table:30s} -> {target}  ({counts[table]:,} rows)", file=sys.stderr)
+        log.info("ingested %s", table,
+                 extra={"object_name": table, "rows_written": counts[table], "layer": "bronze"})
     return counts
 
 
@@ -91,7 +95,7 @@ def _ingest_claims(spark: SparkSession, input_path: Path, layer_root: str, run_i
     target = f"{layer_root}/claims_raw"
     df.write.mode("append").partitionBy("_ingest_date").parquet(target)
     n = df.count()
-    print(f"  claims_raw -> {target}  ({n:,} rows)", file=sys.stderr)
+    log.info("ingested claims_raw", extra={"object_name": "claims_raw", "rows_written": n, "layer": "bronze"})
     return {"claims_raw": n}
 
 
@@ -101,7 +105,8 @@ def _ingest_providers(spark: SparkSession, input_path: Path, layer_root: str, ru
     target = f"{layer_root}/provider_registry"
     df.write.mode("overwrite").parquet(target)
     n = df.count()
-    print(f"  provider_registry -> {target}  ({n:,} rows)", file=sys.stderr)
+    log.info("ingested provider_registry",
+             extra={"object_name": "provider_registry", "rows_written": n, "layer": "bronze"})
     return {"provider_registry": n}
 
 
@@ -130,7 +135,7 @@ def _ingest_vitals(spark: SparkSession, input_path: Path, layer_root: str, run_i
     target = f"{layer_root}/vitals_stream"
     df.write.mode("append").partitionBy("_ingest_date").parquet(target)
     n = df.count()
-    print(f"  vitals_stream -> {target}  ({n:,} rows)", file=sys.stderr)
+    log.info("ingested vitals_stream", extra={"object_name": "vitals_stream", "rows_written": n, "layer": "bronze"})
     return {"vitals_stream": n}
 
 
@@ -155,8 +160,8 @@ def main(argv: list[str] | None = None) -> int:
     run_id = args.run_id or f"bronze-{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
     spark = _spark(f"bronze_ingest:{args.source}")
     try:
-        n = SOURCES[args.source](spark, args.input, args.layer_root.rstrip("/"), run_id)
-        print(f"Bronze ingest complete: {n}", file=sys.stderr)
+        SOURCES[args.source](spark, args.input, args.layer_root.rstrip("/"), run_id)
+        log.info("bronze ingest complete", extra={"source": args.source, "run_id": run_id, "layer": "bronze"})
     finally:
         spark.stop()
     return 0

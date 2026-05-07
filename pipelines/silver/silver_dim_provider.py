@@ -6,13 +6,15 @@ code so Gold can resolve it to a hospital surrogate key.
 from __future__ import annotations
 
 import argparse
-import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
+from pipelines.logging_config import get_logger
 from .silver_common import split_by_rule, write_delta, write_quarantine
+
+log = get_logger(__name__)
 
 
 def _spark() -> SparkSession:
@@ -38,7 +40,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         bronze_path = f"{args.bronze_root.rstrip('/')}/provider_registry"
         df = spark.read.parquet(bronze_path)
-        print(f"Loaded {df.count():,} providers from {bronze_path}", file=sys.stderr)
+        log.info("loaded from bronze",
+                 extra={"object_name": "dim_provider", "rows_read": df.count(), "layer": "silver"})
 
         df = df.select(
             F.col("npi").alias("provider_bk"),
@@ -77,7 +80,8 @@ def main(argv: list[str] | None = None) -> int:
 
         silver_path = f"{args.silver_root.rstrip('/')}/dim_provider"
         write_delta(clean, silver_path, mode="overwrite")
-        print(f"Wrote {clean.count():,} rows to {silver_path}", file=sys.stderr)
+        log.info("wrote dim_provider",
+                 extra={"object_name": "dim_provider", "rows_written": clean.count(), "layer": "silver"})
 
         if rejected_all is not None:
             write_quarantine(rejected_all, f"{args.quarantine_root.rstrip('/')}/dim_provider")

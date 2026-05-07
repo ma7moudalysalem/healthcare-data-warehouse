@@ -11,11 +11,14 @@ and a quarantine table for rejected rows.
 """
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
 
 from pyspark.sql import Column, DataFrame
 from pyspark.sql import functions as F
+
+from pipelines.logging_config import get_logger
+
+log = get_logger(__name__)
 
 
 # --- Egypt remap pools -------------------------------------------------------
@@ -82,10 +85,10 @@ class DQResult:
 
     def report(self) -> None:
         pct = (self.rejected_count / self.total * 100) if self.total else 0.0
-        print(
-            f"  DQ [{self.rule_name}]: {self.rejected_count:,}/{self.total:,} rejected ({pct:.2f}%)",
-            file=sys.stderr,
-        )
+        log.info("DQ rule %s: %d/%d rejected (%.2f%%)",
+                 self.rule_name, self.rejected_count, self.total, pct,
+                 extra={"object_name": self.rule_name, "rows_read": self.total,
+                        "rows_rejected": self.rejected_count, "layer": "silver"})
 
 
 def split_by_rule(df: DataFrame, rule: Column, rule_name: str) -> DQResult:

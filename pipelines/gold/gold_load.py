@@ -16,10 +16,13 @@ the notebook.
 from __future__ import annotations
 
 import argparse
-import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+
+from pipelines.logging_config import get_logger
+
+log = get_logger(__name__)
 
 
 def _spark() -> SparkSession:
@@ -44,7 +47,7 @@ def _dim_patient_staging(spark: SparkSession, silver_root: str, gold_root: str) 
         "governorate", "city", "is_deceased",
     )
     out.write.mode("overwrite").parquet(f"{gold_root}/staging/dim_patient_incoming")
-    print(f"  staged dim_patient: {out.count():,} rows", file=sys.stderr)
+    log.info("staged dim_patient", extra={"object_name": "dim_patient", "rows_written": out.count(), "layer": "gold"})
 
 
 def _dim_provider_staging(spark: SparkSession, silver_root: str, gold_root: str) -> None:
@@ -67,7 +70,8 @@ def _dim_provider_staging(spark: SparkSession, silver_root: str, gold_root: str)
            )
     )
     joined.write.mode("overwrite").parquet(f"{gold_root}/staging/dim_provider_incoming")
-    print(f"  staged dim_provider: {joined.count():,} rows", file=sys.stderr)
+    log.info("staged dim_provider",
+             extra={"object_name": "dim_provider", "rows_written": joined.count(), "layer": "gold"})
 
 
 def _dim_hospital_staging(spark: SparkSession, gold_root: str, hospital_seed_path: str) -> None:
@@ -88,7 +92,7 @@ def _dim_hospital_staging(spark: SparkSession, gold_root: str, hospital_seed_pat
         F.conv(F.substring(F.md5(F.col("hospital_code")), 1, 12), 16, 10).cast("bigint").alias("hospital_sk"),
     )
     df.write.mode("overwrite").parquet(f"{gold_root}/staging/dim_hospital_incoming")
-    print(f"  staged dim_hospital: {df.count():,} rows", file=sys.stderr)
+    log.info("staged dim_hospital", extra={"object_name": "dim_hospital", "rows_written": df.count(), "layer": "gold"})
 
 
 def _fact_encounter_staging(spark: SparkSession, silver_root: str, gold_root: str) -> None:
@@ -139,7 +143,8 @@ def _fact_encounter_staging(spark: SparkSession, silver_root: str, gold_root: st
            )
     )
     fact.write.mode("overwrite").parquet(f"{gold_root}/staging/fact_encounter")
-    print(f"  staged fact_encounter: {fact.count():,} rows", file=sys.stderr)
+    log.info("staged fact_encounter",
+             extra={"object_name": "fact_encounter", "rows_written": fact.count(), "layer": "gold"})
 
 
 def _fact_claim_staging(spark: SparkSession, silver_root: str, gold_root: str) -> None:
@@ -185,7 +190,7 @@ def _fact_claim_staging(spark: SparkSession, silver_root: str, gold_root: str) -
               )
     )
     out.write.mode("overwrite").parquet(f"{gold_root}/staging/fact_claim")
-    print(f"  staged fact_claim: {out.count():,} rows", file=sys.stderr)
+    log.info("staged fact_claim", extra={"object_name": "fact_claim", "rows_written": out.count(), "layer": "gold"})
 
 
 def main(argv: list[str] | None = None) -> int:

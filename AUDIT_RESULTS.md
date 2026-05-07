@@ -57,16 +57,16 @@
 
 | # | Area | Risk | Severity | Mitigation | Review By |
 |---|------|------|----------|------------|-----------|
-| R1 | SEC | `pip audit` not in CI pipeline; dependency CVEs not gated | Medium | Add `pip-audit` job to `ci.yml` | 2026-05-21 |
+| R1 | SEC | `pip audit` not in CI pipeline; dependency CVEs not gated | Medium | ~~Add `pip-audit` job to `ci.yml`~~ **RESOLVED** - `dependency-audit` job added | Done |
 | R2 | SEC | Flask `provider_api.py` uses development server; no auth | Low | Document as local-dev-only; not exposed in Docker compose ports (only on generator container) | N/A |
-| R3 | PIPE | Spark tests in CI use `continue-on-error: true`; failures don't block | Medium | Acceptable for CI where Java/Spark may not be available; require Spark tests in pre-release gate | 2026-05-21 |
-| R4 | PERF | `bronze_ingest.py` calls `df.count()` after write (line 83) which triggers a redundant Spark job | Low | Replace with write return value or remove count display | 2026-05-21 |
+| R3 | PIPE | Spark tests in CI use `continue-on-error: true`; failures don't block | Medium | ~~Require Spark tests in pre-release gate~~ **RESOLVED** - `continue-on-error` removed | Done |
+| R4 | PERF | `bronze_ingest.py` calls `df.count()` after write (line 83) which triggers a redundant Spark job | Low | Accepted trade-off: count is now emitted via structured logger for observability | N/A |
 | R5 | DQ | Claims generator creates random UUIDs for `patient_id`/`encounter_id` that don't match Synthea output; orphan claims are expected by design (Q12) | Informational | Documented in `generate_claims.py:103-105` |  N/A |
 | R6 | PIPE | `load_oltp.py` uses `DELETE` cascade instead of `TRUNCATE` due to FK constraints; slower on large volumes | Low | Acceptable for reload frequency (daily batch) | N/A |
 | R7 | DQ | `.env.example` contains `YourStrong!Passw0rd` as placeholder text | Low | Standard practice; actual `.env` is gitignored | N/A |
-| R8 | OBS | No structured logging framework (Serilog equivalent); pipelines use `print()` to stderr | Medium | Add `logging` module with JSON formatter for production | 2026-06-01 |
-| R9 | SEC | Synapse connection in `app.py` uses `UID/PWD`; should migrate to Azure AD auth for production | Medium | Use `azure-identity` + `pyodbc` token auth | 2026-06-01 |
-| R10 | PIPE | No explicit retry/backoff on OLTP connection failures in `load_oltp.py` | Medium | Add `tenacity` or manual retry with backoff | 2026-05-21 |
+| R8 | OBS | No structured logging framework (Serilog equivalent); pipelines use `print()` to stderr | Medium | ~~Add `logging` module with JSON formatter~~ **RESOLVED** - `pipelines/logging_config.py` with JSON/text formatters; all pipeline modules migrated | Done |
+| R9 | SEC | Synapse connection in `app.py` uses `UID/PWD`; should migrate to Azure AD auth for production | Medium | ~~Use `azure-identity` + `pyodbc` token auth~~ **RESOLVED** - `SYNAPSE_AUTH_METHOD=azure_ad` uses `DefaultAzureCredential` | Done |
+| R10 | PIPE | No explicit retry/backoff on OLTP connection failures in `load_oltp.py` | Medium | ~~Add manual retry with backoff~~ **RESOLVED** - 3 retries with exponential backoff | Done |
 
 ---
 
@@ -74,15 +74,18 @@
 
 | Metric | Before Audit | After Audit |
 |--------|-------------|-------------|
-| flake8 errors (src/tests/pipelines) | 0 | 0 |
-| flake8 errors (dashboards) | 13 | 0 |
+| flake8 errors (src/tests/pipelines/dashboards) | 13 | 0 |
 | pytest passed | 54/54 | 54/54 |
-| pytest skipped | 0 | 0 |
 | Hardcoded secrets in source | 2 occurrences | 0 |
 | SQL injection vectors | 2 (app.py) | 0 |
-| CI silent failures | 1 (sqlfluff `\|\| true`) | 0 |
+| CI silent failures | 2 (sqlfluff, spark) | 0 |
 | Logic bugs | 1 (DEMO_MODE) | 0 |
 | Deprecated API usage | 1 (utcnow) | 0 |
+| Pipeline modules using print() | 9 | 0 |
+| Structured logging coverage | none | all pipelines |
+| Azure AD auth support | none | DefaultAzureCredential |
+| CI dependency audit | missing | pip-audit job |
+| dashboards/ in CI lint | excluded | included |
 
 ---
 
@@ -113,12 +116,20 @@ The codebase is production-ready with the fixes applied in this audit. All criti
 
 | File | Change |
 |------|--------|
-| `pipelines/load_oltp.py` | SEC: Remove hardcoded default SA password |
+| `pipelines/load_oltp.py` | SEC: Remove hardcoded default SA password; add retry/backoff; structured logging |
 | `docker/docker-compose.yml` | SEC: Fail-fast on missing SA password |
-| `dashboards/streamlit/app.py` | SEC: Parameterized SQL queries; fix DEMO_MODE logic; fix E712 |
+| `dashboards/streamlit/app.py` | SEC: Parameterized SQL queries; fix DEMO_MODE logic; fix E712; Azure AD auth |
 | `dashboards/streamlit/build_demo_data.py` | DQ: Fix flake8 violations (E702, E231, E501) |
-| `pipelines/bronze/bronze_ingest.py` | PIPE: Replace deprecated `utcnow()` |
-| `pipelines/silver/silver_common.py` | PERF: Replace `rdd.isEmpty()` with `head(1)` |
-| `.github/workflows/ci.yml` | OBS: Remove `\|\| true` on sqlfluff |
+| `pipelines/logging_config.py` | NEW: Structured logging with JSON/text formatters |
+| `pipelines/bronze/bronze_ingest.py` | PIPE: Replace deprecated `utcnow()`; structured logging |
+| `pipelines/gold/gold_load.py` | OBS: Structured logging |
+| `pipelines/streaming/vitals_streaming.py` | OBS: Structured logging |
+| `pipelines/silver/silver_common.py` | PERF: Replace `rdd.isEmpty()` with `head(1)`; structured logging |
+| `pipelines/silver/silver_dim_patient.py` | OBS: Structured logging |
+| `pipelines/silver/silver_dim_provider.py` | OBS: Structured logging |
+| `pipelines/silver/silver_fact_encounter.py` | OBS: Structured logging |
+| `pipelines/silver/silver_fact_claim.py` | OBS: Structured logging |
+| `.github/workflows/ci.yml` | CI: Remove `\|\| true`; remove `continue-on-error`; add `pip-audit` job; add `dashboards/` to flake8 |
+| `.sqlfluff` | NEW: SQLFluff configuration for tsql dialect |
 | `PRODUCTION_READINESS_REVIEW.md` | NEW: Full 16-section audit template |
 | `AUDIT_RESULTS.md` | NEW: This file |

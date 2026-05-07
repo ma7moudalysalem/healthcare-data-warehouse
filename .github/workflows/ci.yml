@@ -17,7 +17,7 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install flake8
-      - run: flake8 src/ tests/ pipelines/ --max-line-length=120 --exclude=__pycache__,build,dist
+      - run: flake8 src/ tests/ pipelines/ dashboards/ --max-line-length=120 --exclude=__pycache__,build,dist
 
   unit:
     name: Unit tests (no Spark)

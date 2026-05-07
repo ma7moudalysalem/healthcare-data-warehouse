@@ -8,13 +8,15 @@ inpatient discharge.
 from __future__ import annotations
 
 import argparse
-import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
+from pipelines.logging_config import get_logger
 from .silver_common import split_by_rule, write_delta, write_quarantine
+
+log = get_logger(__name__)
 
 
 def _spark() -> SparkSession:
@@ -54,7 +56,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         bronze_path = f"{args.bronze_root.rstrip('/')}/synthea_encounters"
         df = spark.read.parquet(bronze_path)
-        print(f"Loaded {df.count():,} rows from {bronze_path}", file=sys.stderr)
+        log.info("loaded from bronze",
+                 extra={"object_name": "fact_encounter", "rows_read": df.count(), "layer": "silver"})
 
         df = (
             df.select(
@@ -137,7 +140,8 @@ def main(argv: list[str] | None = None) -> int:
         clean = clean.withColumn("start_year_month",
                                  F.date_format("start_at", "yyyy-MM"))
         write_delta(clean, silver_path, mode="overwrite", partition_by=["start_year_month"])
-        print(f"Wrote {clean.count():,} rows to {silver_path}", file=sys.stderr)
+        log.info("wrote fact_encounter",
+                 extra={"object_name": "fact_encounter", "rows_written": clean.count(), "layer": "silver"})
 
         if rejected_all is not None:
             quarantine_path = f"{args.quarantine_root.rstrip('/')}/fact_encounter"

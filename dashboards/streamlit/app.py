@@ -38,7 +38,14 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def _connect():
-    """Synapse connection. Cached at app level."""
+    """Synapse connection. Cached at app level.
+
+    Supports two auth modes (set SYNAPSE_AUTH_METHOD env var):
+    - "azure_ad" (recommended for production): uses DefaultAzureCredential
+      from the azure-identity package. Works with managed identity, az cli,
+      environment credentials, etc.
+    - "sql" (default / legacy): uses SYNAPSE_USER + SYNAPSE_PASSWORD.
+    """
     if os.environ.get("HCDW_DEMO_MODE", "0") == "1":
         return None
     try:
@@ -47,9 +54,34 @@ def _connect():
         return None
     server = os.environ.get("SYNAPSE_SERVER")
     db = os.environ.get("SYNAPSE_DATABASE")
+    if not all([server, db]):
+        return None
+
+    auth_method = os.environ.get("SYNAPSE_AUTH_METHOD", "sql").lower()
+
+    if auth_method == "azure_ad":
+        try:
+            import struct
+            from azure.identity import DefaultAzureCredential
+        except ImportError:
+            st.warning("azure-identity not installed; falling back to SQL auth.")
+            auth_method = "sql"
+        else:
+            credential = DefaultAzureCredential()
+            token = credential.get_token("https://database.windows.net/.default")
+            token_bytes = token.token.encode("UTF-16-LE")
+            token_struct = struct.pack(f"<I{len(token_bytes)}s", len(token_bytes), token_bytes)
+            conn = pyodbc.connect(
+                f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={server};DATABASE={db};"
+                f"Encrypt=Yes;TrustServerCertificate=No",
+                attrs_before={1256: token_struct},
+                autocommit=True,
+            )
+            return conn
+
     user = os.environ.get("SYNAPSE_USER")
     pwd = os.environ.get("SYNAPSE_PASSWORD")
-    if not all([server, db, user, pwd]):
+    if not all([user, pwd]):
         return None
     return pyodbc.connect(
         f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={server};DATABASE={db};"

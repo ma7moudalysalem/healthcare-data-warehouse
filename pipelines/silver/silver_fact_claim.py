@@ -14,13 +14,15 @@ Notes:
 from __future__ import annotations
 
 import argparse
-import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
+from pipelines.logging_config import get_logger
 from .silver_common import split_by_rule, write_delta, write_quarantine
+
+log = get_logger(__name__)
 
 
 def _spark() -> SparkSession:
@@ -46,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         bronze_path = f"{args.bronze_root.rstrip('/')}/claims_raw"
         df = spark.read.parquet(bronze_path)
-        print(f"Loaded {df.count():,} claim rows from {bronze_path}", file=sys.stderr)
+        log.info("loaded from bronze", extra={"object_name": "fact_claim", "rows_read": df.count(), "layer": "silver"})
 
         # --- Type enforcement / column rename ---
         df = df.select(
@@ -138,7 +140,10 @@ def main(argv: list[str] | None = None) -> int:
         write_delta(header, header_path, mode="overwrite", partition_by=["service_year_month"])
         write_delta(lines, lines_path, mode="overwrite")
 
-        print(f"Wrote {header.count():,} claims and {lines.count():,} lines.", file=sys.stderr)
+        log.info("wrote fact_claim",
+                 extra={"object_name": "fact_claim", "rows_written": header.count(), "layer": "silver"})
+        log.info("wrote fact_claim_line",
+                 extra={"object_name": "fact_claim_line", "rows_written": lines.count(), "layer": "silver"})
 
         if rejected_all is not None:
             write_quarantine(rejected_all, f"{args.quarantine_root.rstrip('/')}/fact_claim")

@@ -20,7 +20,6 @@ import argparse
 import json
 import os
 import random
-import sys
 import uuid
 from contextlib import contextmanager
 from datetime import datetime
@@ -28,6 +27,10 @@ from pathlib import Path
 from typing import Iterable
 
 import pandas as pd
+
+from pipelines.logging_config import get_logger
+
+log = get_logger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RAW = PROJECT_ROOT / "data" / "raw"
@@ -91,11 +94,8 @@ def _connect(max_retries: int = 3, backoff_base: float = 2.0):
             if attempt == max_retries:
                 raise
             wait = backoff_base ** attempt
-            print(
-                f"  Connection attempt {attempt}/{max_retries} failed, "
-                f"retrying in {wait:.0f}s ...",
-                file=sys.stderr,
-            )
+            log.warning("connection attempt %d/%d failed, retrying in %ds",
+                        attempt, max_retries, int(wait))
             time.sleep(wait)
 
 
@@ -178,7 +178,7 @@ def load_patients(cur, df: pd.DataFrame) -> int:
 def load_providers(cur) -> int:
     path = RAW / "providers.json"
     if not path.exists():
-        print(f"  skip providers: {path} not found", file=sys.stderr)
+        log.warning("skip providers: %s not found", path)
         return 0
     with path.open("r", encoding="utf-8") as f:
         providers = json.load(f)
@@ -316,7 +316,7 @@ def load_procedures(cur, df: pd.DataFrame) -> int:
 def load_claims(cur) -> int:
     path = RAW / "claims.jsonl"
     if not path.exists():
-        print(f"  skip claims: {path} not found", file=sys.stderr)
+        log.warning("skip claims: %s not found", path)
         return 0
 
     # Map carrier name -> payer_id
@@ -392,10 +392,10 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     only = set(args.only.split(",")) if args.only else None
 
-    print("Connecting to OLTP database ...", file=sys.stderr)
+    log.info("connecting to OLTP database")
     with cursor() as cur:
         if args.truncate:
-            print("Truncating tables ...", file=sys.stderr)
+            log.info("truncating tables")
             _truncate_in_dependency_order(cur)
 
         cur.execute("SELECT hospital_code FROM ref.hospital WHERE is_active = 1")
@@ -406,31 +406,31 @@ def main(argv: Iterable[str] | None = None) -> int:
         if not only or "patients" in only:
             df = _df_synthea("patients.csv")
             n = load_patients(cur, df)
-            print(f"  patients : {n:,}", file=sys.stderr)
+            log.info("loaded patients", extra={"object_name": "patients", "rows_written": n})
         if not only or "providers" in only:
             n = load_providers(cur)
-            print(f"  providers: {n:,}", file=sys.stderr)
+            log.info("loaded providers", extra={"object_name": "providers", "rows_written": n})
         if not only or "encounters" in only:
             df = _df_synthea("encounters.csv")
             n = load_encounters(cur, df, hospital_codes)
-            print(f"  encounters: {n:,}", file=sys.stderr)
+            log.info("loaded encounters", extra={"object_name": "encounters", "rows_written": n})
         if not only or "conditions" in only:
             df = _df_synthea("conditions.csv")
             n = load_conditions(cur, df)
-            print(f"  conditions: {n:,}", file=sys.stderr)
+            log.info("loaded conditions", extra={"object_name": "conditions", "rows_written": n})
         if not only or "medications" in only:
             df = _df_synthea("medications.csv")
             n = load_medications(cur, df)
-            print(f"  medications: {n:,}", file=sys.stderr)
+            log.info("loaded medications", extra={"object_name": "medications", "rows_written": n})
         if not only or "procedures" in only:
             df = _df_synthea("procedures.csv")
             n = load_procedures(cur, df)
-            print(f"  procedures: {n:,}", file=sys.stderr)
+            log.info("loaded procedures", extra={"object_name": "procedures", "rows_written": n})
         if not only or "claims" in only:
             n = load_claims(cur)
-            print(f"  claims    : {n:,}", file=sys.stderr)
+            log.info("loaded claims", extra={"object_name": "claims", "rows_written": n})
 
-    print("Done.", file=sys.stderr)
+    log.info("OLTP load complete")
     return 0
 
 
