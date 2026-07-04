@@ -32,7 +32,7 @@ def _spark() -> SparkSession:
 
 
 # Synthea encounter classes -> our normalised values
-CLASS_MAP = F.create_map([F.lit(x) for pair in [
+CLASS_PAIRS = [
     ("ambulatory",  "ambulatory"),
     ("wellness",    "wellness"),
     ("emergency",   "emergency"),
@@ -42,7 +42,13 @@ CLASS_MAP = F.create_map([F.lit(x) for pair in [
     ("snf",         "inpatient"),
     ("home",        "ambulatory"),
     ("virtual",     "ambulatory"),
-] for x in pair])
+]
+
+
+def _class_map():
+    # Built lazily (not at import time) because F.lit() needs an active
+    # SparkContext, which doesn't exist until _spark() has run inside main().
+    return F.create_map([F.lit(x) for pair in CLASS_PAIRS for x in pair])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -65,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
                 F.col("PATIENT").alias("patient_bk"),
                 F.col("PROVIDER").alias("provider_bk"),
                 F.col("ORGANIZATION").alias("organization_bk"),
-                F.coalesce(CLASS_MAP[F.lower(F.col("ENCOUNTERCLASS"))],
+                F.coalesce(_class_map()[F.lower(F.col("ENCOUNTERCLASS"))],
                            F.lit("ambulatory")).alias("encounter_class"),
                 F.col("DESCRIPTION").alias("encounter_type"),
                 F.col("REASONCODE").alias("reason_code"),

@@ -88,6 +88,8 @@ def _dim_hospital_staging(spark: SparkSession, gold_root: str, hospital_seed_pat
         F.col("governorate"),
         F.col("bed_count").cast("int"),
         F.lit(True).alias("is_active"),
+        F.col("lat").cast("decimal(9,6)"),
+        F.col("lon").cast("decimal(9,6)"),
         # Deterministic surrogate key from natural key.
         F.conv(F.substring(F.md5(F.col("hospital_code")), 1, 12), 16, 10).cast("bigint").alias("hospital_sk"),
     )

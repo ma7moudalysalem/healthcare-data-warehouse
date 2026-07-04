@@ -1,26 +1,26 @@
-hospital_code,hospital_name,city,governorate,bed_count,is_clinic
-HSP-CAI-01,Cairo Central Hospital,Cairo,Cairo,320,0
-HSP-CAI-02,Nile Heart Institute,Cairo,Cairo,180,0
-HSP-GIZ-01,Giza Specialty Hospital,Giza,Giza,240,0
-HSP-ALX-01,Alexandria Bayside Medical,Alexandria,Alexandria,280,0
-HSP-MNF-01,Menoufia Regional Medical,Shebin El Kom,Menoufia,150,0
-CLN-CAI-01,Cairo Family Clinic 1,Cairo,Cairo,0,1
-CLN-CAI-02,Cairo Family Clinic 2,Cairo,Cairo,0,1
-CLN-GIZ-03,Giza Family Clinic 3,Giza,Giza,0,1
-CLN-GIZ-04,Giza Family Clinic 4,Giza,Giza,0,1
-CLN-ALX-05,Alexandria Family Clinic 5,Alexandria,Alexandria,0,1
-CLN-ALX-06,Alexandria Family Clinic 6,Alexandria,Alexandria,0,1
-CLN-MNF-07,Menoufia Family Clinic 7,Shebin El Kom,Menoufia,0,1
-CLN-SHA-08,Sharqia Family Clinic 8,Zagazig,Sharqia,0,1
-CLN-DAK-09,Dakahlia Family Clinic 9,Mansoura,Dakahlia,0,1
-CLN-QAL-10,Qalyubia Family Clinic 10,Banha,Qalyubia,0,1
-CLN-GHA-11,Gharbia Family Clinic 11,Tanta,Gharbia,0,1
-CLN-BEH-12,Beheira Family Clinic 12,Damanhur,Beheira,0,1
-CLN-ASW-13,Aswan Family Clinic 13,Aswan,Aswan,0,1
-CLN-LUX-14,Luxor Family Clinic 14,Luxor,Luxor,0,1
-CLN-SUE-15,Suez Family Clinic 15,Suez,Suez,0,1
-CLN-FAY-16,Fayoum Family Clinic 16,Fayoum,Fayoum,0,1
-CLN-MIN-17,Minya Family Clinic 17,Minya,Minya,0,1
-CLN-BNS-18,Beni Suef Family Clinic 18,Beni Suef,Beni Suef,0,1
-CLN-ASY-19,Asyut Family Clinic 19,Asyut,Asyut,0,1
-CLN-SOH-20,Sohag Family Clinic 20,Sohag,Sohag,0,1
+hospital_code,hospital_name,city,governorate,bed_count,is_clinic,lat,lon
+HSP-CAI-01,Cairo Central Hospital,Cairo,Cairo,320,0,30.0626,31.2497
+HSP-CAI-02,Nile Heart Institute,Cairo,Cairo,180,0,30.09,31.36
+HSP-GIZ-01,Giza Specialty Hospital,Giza,Giza,240,0,29.98,31.12
+HSP-ALX-01,Alexandria Bayside Medical,Alexandria,Alexandria,280,0,31.2001,29.9187
+HSP-MNF-01,Menoufia Regional Medical,Shebin El Kom,Menoufia,150,0,30.559,31.011
+CLN-CAI-01,Cairo Family Clinic 1,Cairo,Cairo,0,1,30.005556,31.205556
+CLN-CAI-02,Cairo Family Clinic 2,Cairo,Cairo,0,1,30.048889,31.248889
+CLN-GIZ-03,Giza Family Clinic 3,Giza,Giza,0,1,29.982222,31.152222
+CLN-GIZ-04,Giza Family Clinic 4,Giza,Giza,0,1,29.967778,31.137778
+CLN-ALX-05,Alexandria Family Clinic 5,Alexandria,Alexandria,0,1,31.226667,29.946667
+CLN-ALX-06,Alexandria Family Clinic 6,Alexandria,Alexandria,0,1,31.252222,29.972222
+CLN-MNF-07,Menoufia Family Clinic 7,Shebin El Kom,Menoufia,0,1,30.585556,31.045556
+CLN-SHA-08,Sharqia Family Clinic 8,Zagazig,Sharqia,0,1,30.572222,31.482222
+CLN-DAK-09,Dakahlia Family Clinic 9,Mansoura,Dakahlia,0,1,31.051111,31.391111
+CLN-QAL-10,Qalyubia Family Clinic 10,Banha,Qalyubia,0,1,30.511111,31.231111
+CLN-GHA-11,Gharbia Family Clinic 11,Tanta,Gharbia,0,1,30.8,31.01
+CLN-BEH-12,Beheira Family Clinic 12,Damanhur,Beheira,0,1,31.075556,30.505556
+CLN-ASW-13,Aswan Family Clinic 13,Aswan,Aswan,0,1,24.055556,32.865556
+CLN-LUX-14,Luxor Family Clinic 14,Luxor,Luxor,0,1,25.691111,32.641111
+CLN-SUE-15,Suez Family Clinic 15,Suez,Suez,0,1,29.942222,32.522222
+CLN-FAY-16,Fayoum Family Clinic 16,Fayoum,Fayoum,0,1,29.294444,30.824444
+CLN-MIN-17,Minya Family Clinic 17,Minya,Minya,0,1,28.062222,30.702222
+CLN-BNS-18,Beni Suef Family Clinic 18,Beni Suef,Beni Suef,0,1,29.067778,31.097778
+CLN-ASY-19,Asyut Family Clinic 19,Asyut,Asyut,0,1,27.17,31.17
+CLN-SOH-20,Sohag Family Clinic 20,Sohag,Sohag,0,1,26.527778,31.667778
