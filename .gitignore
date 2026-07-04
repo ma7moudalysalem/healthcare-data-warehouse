@@ -30,9 +30,16 @@ venv/
 # Data files (too large for git)
 data/raw/*.csv
 data/raw/*.json
+data/raw/*.jsonl
+data/raw/synthea/
 data/raw/*.parquet
 data/cleaned/*.parquet
 data/gold/*.parquet
+# Generated medallion / streaming outputs
+data/bronze/
+data/silver/
+data/silver_quarantine/
+data/checkpoints/
 *.parquet
 *.csv
 # Config CSVs are committed (small, deterministic seeds).
