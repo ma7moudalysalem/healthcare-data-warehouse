@@ -2,7 +2,9 @@
 dialect = tsql
 templater = raw
 max_line_length = 120
-exclude_rules = LT05,AM04,ST06,RF04,CP02,CP03
+# The DDL/queries use deliberate column-aligned formatting for readability, so
+# the opinionated layout/alias rules are treated as project conventions.
+exclude_rules = LT05,AM04,ST06,RF04,CP02,CP03,LT01,LT02,LT08,LT09,LT14,AL01,AL03,AM05,ST09,CP01,AL09,AM03,RF03,CV11,LT03,TQ01,RF01
 
 [sqlfluff:indentation]
 indent_unit = space

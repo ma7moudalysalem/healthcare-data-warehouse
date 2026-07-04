@@ -1,0 +1,4 @@
+# Synapse dedicated-pool syntax (WITH (DISTRIBUTION=..., CLUSTERED COLUMNSTORE INDEX))
+# is not parseable by sqlfluff's tsql dialect; the Azure SQL-compatible port lives
+# in sql/ddl/azuresql/warehouse_azuresql.sql and is linted normally.
+sql/ddl/10_warehouse_schema.sql
