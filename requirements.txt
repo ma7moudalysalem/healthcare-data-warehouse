@@ -18,7 +18,7 @@ requests>=2.31.0
 # Spark (local development) - pinned. The pipeline _spark() builders request the
 # Delta runtime jar io.delta:delta-spark_2.12:3.0.0 (Scala 2.12 / Spark 3.5).
 # Do NOT bump to PySpark 4.x without also updating those jar coordinates.
-pyspark==3.5.0
+pyspark==3.5.2
 delta-spark==3.0.0
 
 # Visualization

@@ -90,7 +90,7 @@ jobs:
       - name: Build streamlit image
         run: docker build -f docker/Dockerfile.streamlit -t hcdw-streamlit:ci .
       - name: Run Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: hcdw-streamlit:ci
           format: table
