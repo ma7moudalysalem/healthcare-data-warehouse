@@ -1,0 +1,3 @@
+# Spark Structured Streaming consumer: Event Hubs (Kafka) -> Azure SQL.
+pyspark==3.5.0
+pyodbc>=5.0.0

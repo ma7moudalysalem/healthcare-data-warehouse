@@ -1,0 +1,3 @@
+# Lightweight Event Hubs -> Azure SQL streaming consumer (no Spark).
+azure-eventhub>=5.11.0
+pyodbc>=5.0.0

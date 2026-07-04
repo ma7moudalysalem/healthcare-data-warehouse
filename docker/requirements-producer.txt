@@ -1,0 +1,3 @@
+# Vital-signs producer → Azure Event Hubs.
+azure-eventhub>=5.11.0
+faker>=20.0.0

@@ -1,0 +1,21 @@
+# Spark Structured Streaming consumer — reads the vitals stream from Event Hubs
+# (Kafka endpoint) and upserts minute aggregates into Azure SQL.
+FROM python:3.11.9-slim-bookworm
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends default-jdk-headless procps curl gnupg2 unixodbc-dev && \
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg && \
+    curl -fsSL https://packages.microsoft.com/config/debian/12/prod.list | tee /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql18 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/default-java \
+    PYTHONUNBUFFERED=1 \
+    EVENT_HUB_NAME=vitals-stream
+
+WORKDIR /app
+COPY docker/requirements-consumer.txt .
+RUN pip install --no-cache-dir -r requirements-consumer.txt
+COPY pipelines /app/pipelines
+
+CMD ["python", "-m", "pipelines.streaming.vitals_eventhub_to_sql"]

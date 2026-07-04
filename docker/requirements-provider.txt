@@ -1,0 +1,3 @@
+# Provider Reference API (Flask microservice) — minimal deps.
+flask>=3.0.0
+faker>=20.0.0

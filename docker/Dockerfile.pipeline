@@ -1,0 +1,18 @@
+# PySpark ETL runner. Mount the repo at /work and invoke the pipeline modules,
+# e.g.:
+#   docker run --rm -v "$PWD:/work" -w /work hcdw-pipeline:v1 \
+#     python -m pipelines.bronze.bronze_ingest --source synthea \
+#            --input data/raw/synthea --layer-root data/bronze
+FROM python:3.11.9-slim-bookworm
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends default-jdk-headless procps && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+ENV JAVA_HOME=/usr/lib/jvm/default-java \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /work
+COPY docker/requirements-pipeline.txt .
+RUN pip install --no-cache-dir -r requirements-pipeline.txt
+
+CMD ["bash"]

@@ -1,0 +1,10 @@
+# Batch/stream ETL runtime (PySpark + Delta). Used by docker/Dockerfile.pipeline
+# to run bronze/silver/gold on Linux, where Spark 3.5 works reliably (local
+# Windows + JDK 17 hits a Netty loopback bug).
+pyspark==3.5.0
+delta-spark==3.0.0
+# pyspark 3.5 is not compatible with pandas>=2.2 / numpy>=2 (arrow conversion
+# crashes the JVM mid-job) — pin to the compatible range.
+pandas>=2.1.0,<2.2
+numpy>=1.25.0,<2
+pyarrow>=14.0.0,<16

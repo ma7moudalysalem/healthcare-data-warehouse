@@ -1,0 +1,16 @@
+# IoT vital-signs simulator → Azure Event Hubs (the streaming speed-layer source).
+FROM python:3.11.9-slim-bookworm
+
+RUN useradd --create-home appuser
+USER appuser
+WORKDIR /app
+ENV PATH="/home/appuser/.local/bin:${PATH}" \
+    PYTHONUNBUFFERED=1 \
+    EVENT_HUB_NAME=vitals-stream
+
+COPY --chown=appuser docker/requirements-producer.txt .
+RUN pip install --no-cache-dir --user -r requirements-producer.txt
+COPY --chown=appuser src /app/src
+
+# 30 bedside monitors, 1 reading/sec each → Event Hubs.
+CMD ["python", "-m", "src.generators.simulate_vitals", "--devices", "30", "--rate", "1.0"]

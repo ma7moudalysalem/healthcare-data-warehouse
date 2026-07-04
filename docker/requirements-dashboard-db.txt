@@ -1,0 +1,9 @@
+# Dashboard deps for LIVE mode (reads dw.* views from Azure SQL via pyodbc).
+streamlit>=1.29.0
+pandas>=2.1.0
+numpy>=1.25.0
+pyarrow>=14.0.0
+plotly>=5.18.0
+pyodbc>=5.0.0
+azure-identity>=1.15.0
+openai>=1.40.0

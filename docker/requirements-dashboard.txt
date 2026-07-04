@@ -1,0 +1,8 @@
+# Lean runtime deps for the Streamlit clinical-ops dashboard (demo mode).
+# Deliberately excludes pyspark / delta / azure-sdk / ydata-profiling — the
+# dashboard only reads bundled demo Parquet with pandas and renders with plotly.
+streamlit>=1.29.0
+pandas>=2.1.0
+numpy>=1.25.0
+pyarrow>=14.0.0
+plotly>=5.18.0

@@ -1,0 +1,34 @@
+# Dashboard image for LIVE mode: connects to Azure SQL (dw.* views) via pyodbc.
+# Adds the Microsoft ODBC Driver 18 on top of the lean dashboard deps. The
+# bundled demo Parquet is still generated as an offline fallback.
+FROM python:3.11.9-slim-bookworm
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl gnupg2 unixodbc-dev && \
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg && \
+    curl -fsSL https://packages.microsoft.com/config/debian/12/prod.list | tee /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y msodbcsql18 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN useradd --create-home appuser
+USER appuser
+WORKDIR /app
+ENV PATH="/home/appuser/.local/bin:${PATH}" \
+    PYTHONUNBUFFERED=1
+
+COPY --chown=appuser docker/requirements-dashboard-db.txt .
+RUN pip install --no-cache-dir --user -r requirements-dashboard-db.txt
+
+COPY --chown=appuser dashboards/streamlit /app/dashboards/streamlit
+RUN python /app/dashboards/streamlit/build_demo_data.py
+
+EXPOSE 8501
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8501/_stcore/health').read().strip()==b'ok' else 1)"
+
+CMD ["streamlit", "run", "dashboards/streamlit/app.py", \
+     "--server.address=0.0.0.0", "--server.port=8501", \
+     "--server.headless=true", "--server.enableCORS=false", \
+     "--server.enableXsrfProtection=false", "--browser.gatherUsageStats=false"]
