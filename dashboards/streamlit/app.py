@@ -22,14 +22,95 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+try:
+    import ai_assistant
+except Exception:  # pragma: no cover - optional AI deps
+    ai_assistant = None
+try:
+    import egypt_map
+except Exception:  # pragma: no cover
+    egypt_map = None
+
+try:
+    from zoneinfo import ZoneInfo
+    CAIRO_TZ = ZoneInfo("Africa/Cairo")
+except Exception:  # pragma: no cover - no tzdata; fall back to a fixed offset
+    from datetime import timedelta as _td
+    from datetime import timezone as _tz
+    CAIRO_TZ = _tz(_td(hours=2))
+
+
+def _to_cairo(series):
+    """Convert a UTC datetime series to Egypt (Cairo) local time for display."""
+    s = pd.to_datetime(series, errors="coerce")
+    try:
+        if getattr(s.dt, "tz", None) is None:
+            s = s.dt.tz_localize("UTC")
+        return s.dt.tz_convert(CAIRO_TZ).dt.tz_localize(None)
+    except Exception:  # noqa: BLE001
+        return s
+
+
+def _cairo_now():
+    return pd.Timestamp.now(tz=CAIRO_TZ).tz_localize(None)
+
+
 DEMO_DIR = Path(__file__).resolve().parent / "demo_data"
 DEMO_MODE = os.environ.get("HCDW_DEMO_MODE", "0") == "1" or not DEMO_DIR.exists()
 
 st.set_page_config(
-    page_title="Healthcare DW - Clinical Operations",
+    page_title="Healthcare DW — Clinical Intelligence Platform",
     page_icon="🩺",
     layout="wide",
     initial_sidebar_state="expanded",
+)
+
+# ---------------------------------------------------------------------------
+#   Look & feel — turn the default Streamlit app into a branded web portal.
+# ---------------------------------------------------------------------------
+st.markdown(
+    """
+    <style>
+      #MainMenu, header[data-testid="stHeader"], footer {visibility: hidden;}
+      .block-container {padding-top: 0.8rem; max-width: 1340px;}
+      :root {--ink:#0f172a; --muted:#64748b; --line:#e5e9f0; --accent:#1e6fd9; --bg:#f7f9fc;}
+      html, body, [class*="css"] {font-family:-apple-system,"Segoe UI",Roboto,
+        "Helvetica Neue",Arial,sans-serif; color:var(--ink);}
+      .stApp {background:var(--bg);}
+      h1 {font-weight:700; font-size:1.5rem; letter-spacing:-.01em; color:var(--ink);}
+      h2 {font-weight:650; font-size:1.15rem;}
+      h3 {font-weight:650; font-size:1.02rem; color:var(--ink);}
+      /* top bar */
+      .hc-topbar {display:flex; align-items:center; justify-content:space-between;
+        background:#fff; border:1px solid var(--line); border-radius:10px;
+        padding:12px 18px; margin-bottom:16px;}
+      .hc-topbar .brand {font-weight:700; font-size:1.05rem; color:var(--ink);}
+      .hc-topbar .brand b {color:var(--accent);}
+      .hc-topbar .sub {color:var(--muted); font-size:.78rem; font-weight:500;}
+      .hc-status {font-size:.8rem; color:var(--muted);}
+      .hc-dot {height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:6px; vertical-align:middle;}
+      .hc-label {text-transform:uppercase; letter-spacing:.08em; font-size:.72rem;
+        color:var(--muted); font-weight:700; margin:10px 0 2px 0;}
+      /* flat metric cards */
+      div[data-testid="stMetric"] {background:#fff; border:1px solid var(--line);
+        border-radius:10px; padding:12px 16px;}
+      div[data-testid="stMetricLabel"] p {color:var(--muted); font-size:.8rem; font-weight:600;}
+      div[data-testid="stMetricValue"] {color:var(--ink); font-weight:700; font-size:1.55rem;}
+      /* sidebar */
+      section[data-testid="stSidebar"] {background:#0f172a; border-right:1px solid #1e293b;}
+      section[data-testid="stSidebar"] * {color:#cbd5e1 !important;}
+      section[data-testid="stSidebar"] .stRadio [data-baseweb="radio"] {padding:3px 0;}
+      /* panels */
+      .hc-panel {background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+st.sidebar.markdown(
+    "<div style='padding:8px 4px 16px 4px; border-bottom:1px solid #1e293b; margin-bottom:10px;'>"
+    "<div style='font-size:1.15rem; font-weight:700; color:#fff;'>HealthCare&nbsp;DW</div>"
+    "<div style='font-size:.72rem; color:#7b8aa0; letter-spacing:.04em;'>CLINICAL INTELLIGENCE PLATFORM</div></div>",
+    unsafe_allow_html=True,
 )
 
 
@@ -90,7 +171,7 @@ def _connect():
     )
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=30, show_spinner=False)
 def _query(sql: str, params: tuple = ()) -> pd.DataFrame:
     conn = _connect()
     if conn is not None:
@@ -108,6 +189,49 @@ def _kpi(label: str, value, help_text: str | None = None, delta=None) -> None:
     st.metric(label, value, delta=delta, help=help_text)
 
 
+# Human-readable column names — no more snake_case in the UI.
+PRETTY = {
+    "minute_start_utc": "Time (Cairo)", "patient_name": "Patient", "patient_id": "Patient ID",
+    "hospital_name": "Hospital", "hospital_code": "Code", "hospital_governorate": "Governorate",
+    "patient_governorate": "Governorate", "primary_anomaly_kind": "Anomaly", "bed_number": "Bed",
+    "device_id": "Device", "heart_rate_avg": "Heart rate", "heart_rate_min": "HR min",
+    "heart_rate_max": "HR max", "spo2_avg": "SpO₂ %", "spo2_min": "SpO₂ min", "systolic_avg": "Systolic",
+    "diastolic_avg": "Diastolic", "temperature_c_avg": "Temp °C", "temperature_c_max": "Temp max °C",
+    "respiratory_rate_avg": "Resp rate", "sample_count": "Samples", "anomaly_event_count": "Anomalies",
+    "primary_icd10_code": "ICD-10", "primary_diagnosis": "Diagnosis", "diagnosis_chapter": "Chapter",
+    "encounter_class": "Class", "encounter_date": "Date", "length_of_stay_hours": "LOS (h)",
+    "total_cost_usd": "Total cost", "avg_cost": "Avg cost", "avg_cost_usd": "Avg cost",
+    "payer_name": "Payer", "billed_amount": "Billed", "paid_amount": "Paid", "allowed_amount": "Allowed",
+    "denied_amount": "Denied", "status": "Status", "claim_number": "Claim #", "service_date": "Service date",
+    "provider_name": "Provider", "provider_specialty": "Specialty", "age_band": "Age band",
+    "gender": "Gender", "beds": "Beds", "bed_count": "Beds", "encounters": "Encounters", "count": "Count",
+    "claims": "Claims", "denied": "Denied", "denial_pct": "Denial %", "denial": "Denial %",
+    "readmit": "Readmission %", "readmission_pct": "Readmission %", "governorate": "Governorate",
+    "days_to_decision": "Days to decide", "line_count": "Lines", "layer": "Layer", "t": "Table",
+    "object_name": "Object", "rows_written": "Rows", "started_at": "Started", "finished_at": "Finished",
+    "n": "Rows",
+}
+
+
+_MONEY_COLS = {"Total cost", "Avg cost", "Billed", "Paid", "Allowed", "Denied"}
+_PCT_COLS = {"Denial %", "Readmission %"}
+
+
+def _show(df, **kw) -> None:
+    """Render a dataframe with friendly column names and formatted numbers."""
+    d = df.rename(columns=PRETTY)
+    cfg = {}
+    for c in d.columns:
+        try:
+            if c in _MONEY_COLS:
+                cfg[c] = st.column_config.NumberColumn(c, format="$%.0f")
+            elif c in _PCT_COLS:
+                cfg[c] = st.column_config.NumberColumn(c, format="%.1f%%")
+        except Exception:  # noqa: BLE001
+            pass
+    st.dataframe(d, use_container_width=True, hide_index=True, column_config=cfg, **kw)
+
+
 # ---------------------------------------------------------------------------
 #   Sidebar filters
 # ---------------------------------------------------------------------------
@@ -118,13 +242,13 @@ selected_hospital = st.sidebar.selectbox("Hospital", hospitals, index=0)
 
 date_range = st.sidebar.date_input(
     "Date range",
-    value=(pd.Timestamp.utcnow() - pd.Timedelta(days=90), pd.Timestamp.utcnow()),
+    value=(_cairo_now() - pd.Timedelta(days=90), _cairo_now()),
 )
 if isinstance(date_range, tuple) and len(date_range) == 2:
     from_date, to_date = date_range
 else:
-    from_date = pd.Timestamp.utcnow() - pd.Timedelta(days=90)
-    to_date = pd.Timestamp.utcnow()
+    from_date = _cairo_now() - pd.Timedelta(days=90)
+    to_date = _cairo_now()
 
 st.sidebar.caption(
     "Connected to Synapse" if _connect() is not None else "Demo mode (local Parquet)"
@@ -134,7 +258,8 @@ st.sidebar.caption(
 # ---------------------------------------------------------------------------
 #   Pages
 # ---------------------------------------------------------------------------
-PAGES = ["Hospital Operations", "Revenue & Claims", "Live Vital Signs"]
+PAGES = ["Home", "Hospital Operations", "Revenue & Claims", "Live Vital Signs",
+         "Egypt Map", "AI Assistant", "System Health"]
 page = st.sidebar.radio("Page", PAGES)
 
 
@@ -205,7 +330,13 @@ def page_operations() -> None:
            .sort_values("count", ascending=False)
            .head(10)
     )
-    st.dataframe(top_dx, use_container_width=True, hide_index=True)
+    fig = px.bar(top_dx.sort_values("count"), x="count", y="primary_diagnosis",
+                 orientation="h", hover_data=["primary_icd10_code"], text="count")
+    fig.update_traces(marker_color="#1e6fd9", textposition="outside")
+    fig.update_layout(height=360, margin=dict(l=0, r=0, t=6, b=0), plot_bgcolor="white",
+                      paper_bgcolor="white", xaxis_title=None, yaxis_title=None)
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True})
+    st.caption("Hover for the ICD-10 code · drag to zoom · use the toolbar to download.")
 
 
 def page_revenue() -> None:
@@ -246,11 +377,12 @@ def page_revenue() -> None:
         st.subheader("Status mix")
         mix = claims["status"].value_counts().reset_index()
         mix.columns = ["status", "count"]
+        mix["status"] = mix["status"].str.replace("_", " ").str.title()
         fig = px.pie(mix, names="status", values="count", hole=0.45)
         fig.update_layout(height=350)
         st.plotly_chart(fig, use_container_width=True)
     with right:
-        st.subheader("Denial rate by payer")
+        st.subheader("Denial rate by payer · click to drill")
         per_payer = (
             claims.groupby("payer_name")
                   .agg(claims=("claim_sk", "count"),
@@ -260,9 +392,29 @@ def page_revenue() -> None:
                   .sort_values("denial_pct", ascending=False)
         )
         fig = px.bar(per_payer, x="payer_name", y="denial_pct",
-                     hover_data=["claims", "denied"])
-        fig.update_layout(height=350, yaxis_title="denial %")
-        st.plotly_chart(fig, use_container_width=True)
+                     custom_data=["payer_name"], hover_data=["claims", "denied"])
+        fig.update_traces(marker_color="#1e6fd9")
+        fig.update_layout(height=350, yaxis_title="denial %", plot_bgcolor="white",
+                          paper_bgcolor="white", xaxis_title=None)
+        pay_evt = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="rev_payer")
+
+    picked = None
+    try:
+        pts = (pay_evt.get("selection", {}) or {}).get("points", []) if isinstance(pay_evt, dict) \
+            else getattr(getattr(pay_evt, "selection", None), "points", [])
+        if pts:
+            cd = pts[0].get("customdata") if isinstance(pts[0], dict) else None
+            picked = cd[0] if cd else None
+    except Exception:  # noqa: BLE001
+        picked = None
+    if picked:
+        sub = claims[claims["payer_name"] == picked]
+        st.markdown(f'<div class="hc-label">Drill-down — {picked}</div>', unsafe_allow_html=True)
+        dc = st.columns(4)
+        dc[0].metric("Claims", f"{len(sub):,}")
+        dc[1].metric("Denial rate", f"{100 * sub['is_denied'].mean():.1f}%")
+        dc[2].metric("Total billed", f"{sub['billed_amount'].sum():,.0f}")
+        dc[3].metric("Collection", f"{100 * sub['paid_amount'].sum() / max(sub['billed_amount'].sum(), 1):.1f}%")
 
     st.subheader("Monthly billed vs paid")
     monthly = (
@@ -275,18 +427,23 @@ def page_revenue() -> None:
 
 
 def page_vitals() -> None:
+    st.markdown('<div class="hc-label">Real-time monitoring</div>', unsafe_allow_html=True)
     st.title("Live Vital Signs")
-    st.caption("Last 24 hours.  Auto-refresh every 60s when connected to Synapse.")
+    st.caption("Last 24 hours · auto-refreshes every 30 seconds · times shown in Egypt (Cairo).")
 
-    if _connect() is not None:
-        st_autorefresh = None
-        try:
-            from streamlit_autorefresh import st_autorefresh as _ar  # noqa: WPS433
-            st_autorefresh = _ar
-        except ImportError:
-            pass
-        if st_autorefresh:
-            st_autorefresh(interval=60_000, key="vital_refresh")
+    st_autorefresh = None
+    try:
+        from streamlit_autorefresh import st_autorefresh as _ar  # noqa: WPS433
+        st_autorefresh = _ar
+    except ImportError:
+        pass
+    if st_autorefresh:
+        st_autorefresh(interval=30_000, key="vital_refresh")
+    else:  # dependency-free fallback: reload the page every 30s
+        import streamlit.components.v1 as _components
+        _components.html(
+            "<script>setTimeout(function(){window.parent.location.reload();}, 30000);</script>",
+            height=0)
 
     sql = """
         SELECT TOP (500) *
@@ -298,6 +455,8 @@ def page_vitals() -> None:
     if vs.empty:
         st.info("No vital sign data in the last 24h.")
         return
+    vs["minute_start_utc"] = _to_cairo(vs["minute_start_utc"])
+    st.caption(f"Last updated: {_cairo_now().strftime('%Y-%m-%d %H:%M')} (Cairo)")
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -317,7 +476,7 @@ def page_vitals() -> None:
                 "systolic_avg", "temperature_c_max",
             ]]
     )
-    st.dataframe(alerts, use_container_width=True, hide_index=True)
+    _show(alerts)
 
     pick = st.selectbox(
         "Drill-down patient",
@@ -328,14 +487,326 @@ def page_vitals() -> None:
         fig = px.line(
             sub, x="minute_start_utc",
             y=["heart_rate_avg", "spo2_avg", "systolic_avg"],
-            title=f"{pick} - last 24h",
+            labels={"minute_start_utc": "Time (UTC)", "value": "Reading", "variable": "Vital"},
+            title=f"{pick} — last 24 hours",
         )
+        _names = {"heart_rate_avg": "Heart rate", "spo2_avg": "SpO₂", "systolic_avg": "Systolic BP"}
+        fig.for_each_trace(lambda t: t.update(name=_names.get(t.name, t.name)))
+        fig.update_layout(plot_bgcolor="white", paper_bgcolor="white",
+                          legend_title_text="", margin=dict(l=0, r=0, t=40, b=0))
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True})
+
+
+def _count(view: str) -> int:
+    df = _query(f"SELECT encounter_sk FROM {view}" if "encounter" in view
+                else f"SELECT * FROM {view}")
+    return 0 if df is None else len(df)
+
+
+def page_home() -> None:
+    st.markdown('<div class="hc-label">Executive overview</div>', unsafe_allow_html=True)
+    st.title("Network performance")
+    try:
+        enc = _query("SELECT encounter_date, is_inpatient, is_emergency, is_readmission_30d, "
+                     "hospital_name, encounter_class, total_cost_usd FROM dw.vw_encounter_enriched")
+        clm = _query("SELECT is_denied, billed_amount, paid_amount, status FROM dw.vw_claim_enriched")
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Could not load overview: {exc}")
+        return
+    if enc is None or enc.empty:
+        st.info("No data available.")
+        return
+
+    inp = int(enc["is_inpatient"].sum())
+    readmit = int(enc["is_readmission_30d"].sum())
+    denial = 100 * clm["is_denied"].mean() if clm is not None and len(clm) else 0
+    collect = 100 * clm["paid_amount"].sum() / max(clm["billed_amount"].sum(), 1) if clm is not None else 0
+    k = st.columns(5)
+    k[0].metric("Total encounters", f"{len(enc):,}")
+    k[1].metric("Inpatient", f"{inp:,}")
+    k[2].metric("30-day readmission", f"{(readmit / inp * 100):.1f}%" if inp else "—")
+    k[3].metric("Claim denial rate", f"{denial:.1f}%")
+    k[4].metric("Collection rate", f"{collect:.1f}%")
+
+    st.write("")
+    left, right = st.columns([3, 2])
+    with left:
+        st.markdown('<div class="hc-label">Encounter volume — daily</div>', unsafe_allow_html=True)
+        ts = enc.groupby("encounter_date").size().reset_index(name="encounters")
+        fig = px.area(ts, x="encounter_date", y="encounters")
+        fig.update_traces(line_color="#1e6fd9", fillcolor="rgba(30,111,217,.12)")
+        fig.update_layout(height=300, margin=dict(l=0, r=0, t=6, b=0),
+                          plot_bgcolor="white", paper_bgcolor="white",
+                          xaxis_title=None, yaxis_title=None)
         st.plotly_chart(fig, use_container_width=True)
+    with right:
+        st.markdown('<div class="hc-label">Encounters by hospital · click a bar to drill</div>',
+                    unsafe_allow_html=True)
+        byh = enc["hospital_name"].value_counts().reset_index()
+        byh.columns = ["hospital_name", "encounters"]
+        fig = px.bar(byh, x="encounters", y="hospital_name", orientation="h",
+                     custom_data=["hospital_name"])
+        fig.update_traces(marker_color="#0f172a",
+                          hovertemplate="%{y}<br>Encounters: %{x:,}<extra></extra>")
+        fig.update_layout(height=300, margin=dict(l=0, r=0, t=6, b=0),
+                          plot_bgcolor="white", paper_bgcolor="white",
+                          xaxis_title=None, yaxis_title=None,
+                          yaxis={"categoryorder": "total ascending"})
+        hosp_evt = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="home_hosp")
+
+    picked = None
+    try:
+        pts = (hosp_evt.get("selection", {}) or {}).get("points", []) if isinstance(hosp_evt, dict) \
+            else getattr(getattr(hosp_evt, "selection", None), "points", [])
+        if pts:
+            cd = pts[0].get("customdata") if isinstance(pts[0], dict) else None
+            picked = cd[0] if cd else None
+    except Exception:  # noqa: BLE001
+        picked = None
+    if picked:
+        sub = enc[enc["hospital_name"] == picked]
+        st.markdown(f'<div class="hc-label">Drill-down — {picked}</div>', unsafe_allow_html=True)
+        dc = st.columns(4)
+        dc[0].metric("Encounters", f"{len(sub):,}")
+        dc[1].metric("Inpatient", f"{int(sub['is_inpatient'].sum()):,}")
+        dc[2].metric("Emergency", f"{int(sub['is_emergency'].sum()):,}")
+        dc[3].metric("Avg cost", f"${sub['total_cost_usd'].mean():,.0f}")
+
+    st.markdown('<div class="hc-label">Encounter mix &amp; claim status</div>', unsafe_allow_html=True)
+    a, b = st.columns(2)
+    with a:
+        mix = enc["encounter_class"].value_counts().reset_index()
+        mix.columns = ["class", "count"]
+        fig = px.bar(mix, x="class", y="count", color="class",
+                     color_discrete_sequence=px.colors.sequential.Blues_r)
+        fig.update_layout(height=260, showlegend=False, margin=dict(l=0, r=0, t=6, b=0),
+                          plot_bgcolor="white", paper_bgcolor="white", xaxis_title=None, yaxis_title=None)
+        st.plotly_chart(fig, use_container_width=True)
+    with b:
+        if clm is not None and len(clm):
+            sm = clm["status"].value_counts().reset_index()
+            sm.columns = ["status", "count"]
+            sm["status"] = sm["status"].str.replace("_", " ").str.title()
+            fig = px.pie(sm, names="status", values="count", hole=0.55,
+                         color_discrete_sequence=px.colors.sequential.Blues_r)
+            fig.update_layout(height=260, margin=dict(l=0, r=0, t=6, b=0), paper_bgcolor="white")
+            st.plotly_chart(fig, use_container_width=True)
+
+
+HOSP_COORDS = {
+    "Cairo Central Hospital": (30.0626, 31.2497),
+    "Nile Heart Institute": (30.0900, 31.3600),
+    "Giza Specialty Hospital": (29.9800, 31.1200),
+    "Alexandria Bayside Medical": (31.2001, 29.9187),
+    "Menoufia Regional Medical": (30.5590, 31.0110),
+}
+
+
+def page_map() -> None:
+    st.markdown('<div class="hc-label">Network map</div>', unsafe_allow_html=True)
+    st.title("Hospital locations")
+    st.caption("Each marker is a hospital — hover for detail, click a hospital to drill in.")
+
+    enc = _query("SELECT hospital_name, hospital_governorate, bed_count, total_cost_usd, "
+                 "is_readmission_30d, is_inpatient, is_emergency FROM dw.vw_encounter_enriched")
+    clm = _query("SELECT hospital_name, is_denied FROM dw.vw_claim_enriched")
+    if enc is None or enc.empty:
+        st.info("No encounter data.")
+        return
+
+    g = (enc.assign(rm=enc["is_readmission_30d"].astype(float))
+            .groupby("hospital_name")
+            .agg(governorate=("hospital_governorate", "first"),
+                 beds=("bed_count", "first"),
+                 encounters=("hospital_name", "size"),
+                 avg_cost=("total_cost_usd", "mean"),
+                 readmit=("rm", "mean"),
+                 emergency=("is_emergency", "sum")).reset_index())
+    if clm is not None and len(clm):
+        d = clm.groupby("hospital_name")["is_denied"].mean().reset_index(name="denial")
+        g = g.merge(d, on="hospital_name", how="left")
+    else:
+        g["denial"] = 0.0
+    g["denial"] = (g["denial"].fillna(0) * 100).round(1)
+    g["readmit"] = (g["readmit"] * 100).round(1)
+    g["avg_cost"] = g["avg_cost"].round(0)
+    g["lat"] = g["hospital_name"].map(lambda h: HOSP_COORDS.get(h, (27, 30))[0])
+    g["lon"] = g["hospital_name"].map(lambda h: HOSP_COORDS.get(h, (27, 30))[1])
+
+    color_by = st.radio("Colour markers by", ["denial", "readmit", "avg_cost"],
+                        horizontal=True, format_func=lambda c: {"denial": "Denial %",
+                        "readmit": "Readmission %", "avg_cost": "Avg cost"}[c])
+
+    _cbtitle = {"denial": "Denial %", "readmit": "Readmission %", "avg_cost": "Avg cost ($)"}[color_by]
+    fig = px.scatter_mapbox(
+        g, lat="lat", lon="lon", size="encounters", color=color_by, text="hospital_name",
+        custom_data=["hospital_name", "governorate", "beds", "encounters", "avg_cost", "denial", "readmit"],
+        color_continuous_scale="YlOrRd", size_max=24, zoom=6.4,
+        center={"lat": 30.45, "lon": 30.98}, height=600)
+    fig.update_traces(
+        marker=dict(opacity=0.92, sizemin=8),
+        textposition="bottom right",
+        textfont=dict(size=13, color="#0b2540"),
+        hovertemplate=("<b>%{customdata[0]}</b><br>%{customdata[1]} · %{customdata[2]} beds<br>"
+                       "Encounters: %{customdata[3]:,}<br>Avg cost: $%{customdata[4]:,.0f}<br>"
+                       "Denial: %{customdata[5]:.1f}%  ·  Readmission: %{customdata[6]:.1f}%<extra></extra>"))
+    fig.update_layout(mapbox_style="open-street-map", margin=dict(l=0, r=0, t=0, b=0),
+                      coloraxis_colorbar=dict(title=_cbtitle, thickness=12, len=0.55, x=0.99))
+
+    event = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="hospmap")
+
+    picked = None
+    try:
+        pts = (event.get("selection", {}) or {}).get("points", []) if isinstance(event, dict) else \
+              getattr(getattr(event, "selection", None), "points", [])
+        if pts:
+            cd = pts[0].get("customdata") if isinstance(pts[0], dict) else None
+            picked = cd[0] if cd else None
+    except Exception:  # noqa: BLE001
+        picked = None
+
+    if picked:
+        row = g[g["hospital_name"] == picked].iloc[0]
+        st.markdown(f'<div class="hc-label">Selected — {picked}</div>', unsafe_allow_html=True)
+        m = st.columns(5)
+        m[0].metric("Encounters", f"{int(row['encounters']):,}")
+        m[1].metric("Beds", f"{int(row['beds']):,}")
+        m[2].metric("Avg cost", f"${row['avg_cost']:,.0f}")
+        m[3].metric("Denial %", f"{row['denial']:.1f}%")
+        m[4].metric("Readmission %", f"{row['readmit']:.1f}%")
+        dx = _query("SELECT primary_icd10_code, primary_diagnosis FROM dw.vw_encounter_enriched "
+                    "WHERE hospital_name = ?", (picked,))
+        if dx is not None and not dx.empty:
+            top = (dx.dropna(subset=["primary_diagnosis"])
+                     .groupby(["primary_icd10_code", "primary_diagnosis"]).size()
+                     .reset_index(name="count").sort_values("count", ascending=False).head(8))
+            st.markdown("**Top diagnoses at this hospital**")
+            _show(top)
+    else:
+        st.caption("👆 Click a hospital marker to see its KPIs and top diagnoses.")
+
+    st.markdown('<div class="hc-label">All hospitals</div>', unsafe_allow_html=True)
+    _show(g[["hospital_name", "governorate", "beds", "encounters", "avg_cost", "denial", "readmit"]]
+          .sort_values("encounters", ascending=False))
+
+
+def page_ai() -> None:
+    st.markdown('<div class="hc-label">Intelligence</div>', unsafe_allow_html=True)
+    st.title("AI Assistant")
+    if ai_assistant is None or not ai_assistant.is_configured():
+        st.warning("Azure OpenAI is not configured for this deployment (set AOAI_* env vars).")
+        return
+    if _connect() is None:
+        st.info("AI querying needs the live Azure SQL connection (demo mode is read-only Parquet).")
+
+    tab_data, tab_reco, tab_chat = st.tabs(["💬 Ask the data", "💡 Recommendations", "🗨️ Chat"])
+
+    with tab_data:
+        st.caption("Ask in Arabic or English — I translate to SQL, run it, and explain the answer.")
+        q = st.text_input("Question", placeholder="ما هي أعلى 5 مستشفيات من حيث عدد الحالات؟")
+        if st.button("Run", type="primary") and q:
+            with st.spinner("Thinking…"):
+                try:
+                    sql = ai_assistant.nl_to_sql(q)
+                    ok, why = ai_assistant.is_safe_sql(sql)
+                    st.code(sql, language="sql")
+                    if not ok:
+                        st.error(f"Blocked unsafe query: {why}")
+                    else:
+                        df = _query(sql)
+                        _show(df)
+                        st.markdown(ai_assistant.narrate(q, sql, df.head(20).to_csv(index=False)))
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"AI error: {exc}")
+
+    with tab_reco:
+        st.caption("KPI-driven operational recommendations.")
+        if st.button("Generate recommendations", type="primary"):
+            with st.spinner("Analysing KPIs…"):
+                try:
+                    enc = _query("SELECT is_inpatient, is_emergency, is_readmission_30d, "
+                                 "length_of_stay_hours, total_cost_usd FROM dw.vw_encounter_enriched")
+                    clm = _query("SELECT is_denied, billed_amount, paid_amount FROM dw.vw_claim_enriched")
+                    summary = (
+                        f"Encounters={len(enc)}, inpatient={int(enc['is_inpatient'].sum())}, "
+                        f"emergency={int(enc['is_emergency'].sum())}, "
+                        f"readmit30d={int(enc['is_readmission_30d'].sum())}, "
+                        f"avg_LOS_h={enc['length_of_stay_hours'].mean():.1f}. "
+                        f"Claims={len(clm)}, denial_rate={100*clm['is_denied'].mean():.1f}%, "
+                        f"collection_rate={100*clm['paid_amount'].sum()/max(clm['billed_amount'].sum(),1):.1f}%."
+                    )
+                    st.caption(summary)
+                    st.markdown(ai_assistant.recommendations(summary))
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"AI error: {exc}")
+
+    with tab_chat:
+        if "chat_hist" not in st.session_state:
+            st.session_state.chat_hist = []
+        for m in st.session_state.chat_hist:
+            st.chat_message(m["role"]).markdown(m["content"])
+        if prompt := st.chat_input("Ask about the platform…"):
+            st.session_state.chat_hist.append({"role": "user", "content": prompt})
+            st.chat_message("user").markdown(prompt)
+            with st.chat_message("assistant"):
+                try:
+                    ans = ai_assistant.chat(st.session_state.chat_hist)
+                except Exception as exc:  # noqa: BLE001
+                    ans = f"AI error: {exc}"
+                st.markdown(ans)
+            st.session_state.chat_hist.append({"role": "assistant", "content": ans})
+
+
+def page_health() -> None:
+    st.markdown('<div class="hc-label">Operations</div>', unsafe_allow_html=True)
+    st.title("System Health & Monitoring")
+    conn = _connect()
+    st.metric("Warehouse connection", "🟢 Azure SQL (live)" if conn is not None else "🟡 Demo mode")
+    if conn is None:
+        st.info("Live monitoring needs the Azure SQL connection.")
+        return
+    st.subheader("Table row counts")
+    try:
+        counts = _query(
+            "SELECT 'dim_patient' t, COUNT(*) n FROM dw.dim_patient "
+            "UNION ALL SELECT 'dim_provider', COUNT(*) FROM dw.dim_provider "
+            "UNION ALL SELECT 'dim_hospital', COUNT(*) FROM dw.dim_hospital "
+            "UNION ALL SELECT 'dim_payer', COUNT(*) FROM dw.dim_payer "
+            "UNION ALL SELECT 'dim_diagnosis', COUNT(*) FROM dw.dim_diagnosis "
+            "UNION ALL SELECT 'fact_encounter', COUNT(*) FROM dw.fact_encounter "
+            "UNION ALL SELECT 'fact_claim', COUNT(*) FROM dw.fact_claim "
+            "UNION ALL SELECT 'fact_vital_signs_minute', COUNT(*) FROM dw.fact_vital_signs_minute")
+        _show(counts)
+    except Exception as exc:  # noqa: BLE001
+        st.warning(f"Count query failed: {exc}")
+    st.subheader("Recent ETL loads (dw.load_audit)")
+    try:
+        audit = _query("SELECT TOP (20) layer, object_name, rows_written, started_at, "
+                       "finished_at, status FROM dw.load_audit ORDER BY audit_id DESC")
+        _show(audit)
+    except Exception as exc:  # noqa: BLE001
+        st.warning(f"Audit query failed: {exc}")
 
 
 PAGE_FUNCS = {
+    "Home": page_home,
     "Hospital Operations": page_operations,
     "Revenue & Claims": page_revenue,
     "Live Vital Signs": page_vitals,
+    "Egypt Map": page_map,
+    "AI Assistant": page_ai,
+    "System Health": page_health,
 }
+
+_live = _connect() is not None
+st.markdown(
+    f"""<div class="hc-topbar">
+      <div><div class="brand">HealthCare <b>DW</b></div>
+      <div class="sub">Hospital-network analytics &middot; Microsoft Azure</div></div>
+      <div class="hc-status"><span class="hc-dot" style="background:{'#16a34a' if _live else '#f59e0b'}"></span>
+      {'Azure SQL — live' if _live else 'Demo data'}</div>
+    </div>""",
+    unsafe_allow_html=True,
+)
+
 PAGE_FUNCS[page]()
