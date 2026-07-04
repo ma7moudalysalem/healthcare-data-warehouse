@@ -1,5 +1,5 @@
 # These CVEs live in Hadoop-ecosystem jars (avro, zookeeper, jetty, derby, ivy,
-# jackson-core) that ship bundled inside the pyspark pip package's hadoop-client
+# jackson-core, jackson-databind) that ship bundled inside the pyspark pip package's hadoop-client
 # runtime. requirements.txt pins pyspark==3.5.2 / delta-spark==3.0.0 to match a
 # specific Delta 3.0 runtime jar coordinate (see requirements.txt comment); the
 # scanned images (streamlit, generator) never invoke Spark or touch these jars
@@ -12,3 +12,4 @@ CVE-2022-46751
 CVE-2023-44981
 CVE-2026-2332
 CVE-2025-52999
+CVE-2022-42003
