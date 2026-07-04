@@ -9,6 +9,7 @@ RUN apt-get update && \
     curl -fsSL https://packages.microsoft.com/config/debian/12/prod.list | tee /etc/apt/sources.list.d/mssql-release.list && \
     apt-get update && \
     ACCEPT_EULA=Y apt-get install -y msodbcsql18 && \
+    apt-get upgrade -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -18,7 +19,8 @@ USER appuser
 WORKDIR /app
 
 COPY --chown=appuser requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user --upgrade "setuptools>=70.0.0" && \
+    pip install --no-cache-dir --user -r requirements.txt
 
 COPY --chown=appuser src/ ./src/
 COPY --chown=appuser config/ ./config/
