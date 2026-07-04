@@ -1,0 +1,17 @@
+# Lean dependency set for the two web-facing images (dashboard, provider API /
+# batch generator). These processes never touch Spark/Delta, so pulling in
+# pyspark would only drag along its bundled Hadoop-ecosystem jars (and their
+# CVEs) for no runtime benefit — see requirements.txt for the pipeline's full,
+# pinned dependency set.
+
+pandas>=2.1.0
+pyarrow>=14.0.0
+faker>=20.0.0
+pyodbc>=5.0.0
+pymssql>=2.2.11
+flask>=3.0.0
+requests>=2.31.0
+plotly>=5.18.0
+azure-storage-file-datalake>=12.14.0
+azure-identity>=1.15.0
+streamlit>=1.29.0

@@ -20,9 +20,9 @@ USER appuser
 
 WORKDIR /app
 
-COPY --chown=appuser requirements.txt .
+COPY --chown=appuser docker/requirements-web.txt .
 RUN pip install --no-cache-dir --user --upgrade "setuptools>=70.0.0" "wheel>=0.46.2" && \
-    pip install --no-cache-dir --user -r requirements.txt
+    pip install --no-cache-dir --user -r requirements-web.txt
 
 COPY --chown=appuser src/ ./src/
 COPY --chown=appuser config/ ./config/
