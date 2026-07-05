@@ -71,8 +71,12 @@ SELECT
     EOMONTH(d),
     DATEFROMPARTS(YEAR(d), ((DATEPART(QUARTER, d) - 1) * 3) + 1, 1)
 FROM (
-    SELECT TOP (4748)
-        DATEADD(DAY, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1, '2018-01-01') AS d
+    -- 1900-01-01..2030-12-31: wide enough that Synthea's historical encounter/
+    -- birth dates (which can run back a full lifetime, not just recent years)
+    -- always resolve through the dim_date join instead of being silently
+    -- dropped by vw_encounter_enriched's INNER JOIN.
+    SELECT TOP (47847)
+        DATEADD(DAY, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1, '1900-01-01') AS d
     FROM sys.all_objects a CROSS JOIN sys.all_objects b
 ) AS s;
 GO
