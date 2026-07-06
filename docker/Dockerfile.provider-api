@@ -2,6 +2,10 @@
 # (src/generators/provider_api.py), deployed as a standalone backend.
 FROM python:3.11.9-slim-bookworm
 
+# Pull the latest Debian security patches + patch system pip/setuptools/wheel (Trivy CRITICAL/HIGH).
+RUN apt-get update && apt-get upgrade -y && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
 RUN useradd --create-home appuser && mkdir -p /app/data/raw && chown -R appuser /app
 USER appuser
 WORKDIR /app
