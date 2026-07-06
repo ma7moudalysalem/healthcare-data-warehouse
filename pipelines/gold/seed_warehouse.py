@@ -113,6 +113,45 @@ PAYERS = [
     ("Self-Pay", False, 0.13, 0.0, 0.0, 0.0),
 ]
 
+# Chronic ICD-10 set used to seed comorbidities (matches Q7's chronic_codes list).
+CHRONIC_CODES = {"I10", "E11.9", "E78.5", "N18.3", "I25.10", "J45.909"}
+
+# rxnorm_code, description, (unit_cost_lo, unit_cost_hi) — drug_sk is the 1-based index.
+DRUGS = [
+    ("860975", "Metformin 500 MG oral tablet", (4, 12)),
+    ("314076", "Lisinopril 10 MG oral tablet", (5, 14)),
+    ("197361", "Amlodipine 5 MG oral tablet", (5, 15)),
+    ("617312", "Atorvastatin 20 MG oral tablet", (8, 22)),
+    ("243670", "Aspirin 81 MG oral tablet", (2, 6)),
+    ("310429", "Furosemide 40 MG oral tablet", (4, 10)),
+    ("745679", "Albuterol 90 MCG/actuation inhaler", (18, 45)),
+    ("308182", "Amoxicillin 500 MG oral capsule", (6, 16)),
+    ("308460", "Azithromycin 250 MG oral tablet", (10, 26)),
+    ("197516", "Ciprofloxacin 500 MG oral tablet", (8, 20)),
+    ("312940", "Sertraline 50 MG oral tablet", (7, 18)),
+    ("285018", "Insulin glargine 100 UNT/ML pen injector", (40, 95)),
+    ("310965", "Ibuprofen 400 MG oral tablet", (3, 9)),
+    ("200031", "Carvedilol 12.5 MG oral tablet", (6, 16)),
+]
+
+# icd10 -> candidate drug_sk list (1-based into DRUGS), so prescriptions match the diagnosis.
+DX_DRUGS = {
+    "I10": [2, 3], "E11.9": [1, 12], "I25.10": [4, 5], "I50.9": [6, 14],
+    "J45.909": [7], "J18.9": [8, 9], "N39.0": [10], "N18.3": [6],
+    "M54.5": [13], "S72.0": [13, 5], "R07.9": [5], "F32.9": [11],
+    "E78.5": [4], "K35.80": [8],
+}
+
+# cpt_code, description, base_charge_usd — procedure_sk is the 1-based index (small ref set).
+PROCEDURES = [
+    ("99213", "Office/outpatient visit, established patient", 120.00),
+    ("99223", "Initial hospital care, high complexity", 310.00),
+    ("93000", "Electrocardiogram, complete", 55.00),
+    ("80053", "Comprehensive metabolic panel", 48.00),
+    ("71046", "Chest X-ray, 2 views", 85.00),
+    ("59400", "Routine obstetric care, vaginal delivery", 2600.00),
+]
+
 FIRST_M = ["Mohamed", "Ahmed", "Mahmoud", "Mostafa", "Ali", "Omar", "Youssef", "Khaled",
            "Hassan", "Hussein", "Ibrahim", "Karim", "Tarek", "Amr", "Sherif", "Sayed",
            "Ramy", "Waleed", "Sameh", "Hany", "Ashraf", "Ayman", "Adel", "Nabil"]
@@ -173,7 +212,7 @@ def main(argv=None):
     cur = cn.cursor()
     for t in ["fact_vital_signs_minute", "fact_claim", "fact_encounter", "fact_prescription",
               "bridge_encounter_diagnosis", "dim_patient", "dim_provider", "dim_hospital",
-              "dim_payer", "dim_diagnosis"]:
+              "dim_payer", "dim_diagnosis", "dim_drug", "dim_procedure"]:
         cur.execute(f"DELETE FROM dw.{t}")
     cn.commit()
 
@@ -202,6 +241,13 @@ def main(argv=None):
     for i, d in enumerate(DIAGNOSES, 1):
         for b in AGE_BANDS:
             band_dx[b].append((i, d[4].get(b, 1)))
+
+    # ---- dim_drug + dim_procedure (reference dims for prescriptions/procedures) ----
+    drug_rows = [(i, dr[0], dr[1]) for i, dr in enumerate(DRUGS, 1)]
+    _insert(cur, "dw.dim_drug", ["drug_sk", "rxnorm_code", "description"], drug_rows)
+    proc_rows = [(i, p[0], p[1], p[2]) for i, p in enumerate(PROCEDURES, 1)]
+    _insert(cur, "dw.dim_procedure",
+            ["procedure_sk", "cpt_code", "description", "base_charge_usd"], proc_rows)
 
     # ---- dim_provider (specialty-aware) ----
     specialties = {}
@@ -380,18 +426,59 @@ def main(argv=None):
              "temperature_c_max", "anomaly_event_count", "primary_anomaly_kind"], vital_rows)
     cn.commit()
 
+    # ---- bridge_encounter_diagnosis (primary dx + chronic comorbidities for older patients) ----
+    # Placed after the facts commit so a failure here can never leave the core warehouse half-loaded.
+    sev_label = {1: "mild", 2: "moderate", 3: "severe"}
+    chronic_dx_sks = [i for i, d in enumerate(DIAGNOSES, 1) if d[0] in CHRONIC_CODES]
+    bridge_rows = []
+    for esk, (pat, hsk, dx, d, total) in enc_idx.items():
+        bridge_rows.append((esk, dx, 1, sev_label[dx_meta[dx][3]]))
+        if pat_meta[pat][0] in ("50-64", "65-79", "80+") and random.random() < 0.5:
+            pool = [s for s in chronic_dx_sks if s != dx]
+            for ssk in random.sample(pool, k=min(random.randint(1, 2), len(pool))):
+                bridge_rows.append((esk, ssk, 0, "moderate"))
+    _insert(cur, "dw.bridge_encounter_diagnosis",
+            ["encounter_sk", "diagnosis_sk", "is_primary", "severity"], bridge_rows)
+    cn.commit()
+
+    # ---- fact_prescription (diagnosis-driven; chronic dx => longer, multi-dispense therapy) ----
+    presc_rows, psk = [], 0
+    for esk, (pat, hsk, dx, d, total) in enc_idx.items():
+        cand = DX_DRUGS.get(dx_meta[dx][0])
+        if not cand:
+            continue
+        for _ in range(random.randint(1, 2)):
+            drug_i = random.choice(cand)
+            lo, hi = DRUGS[drug_i - 1][2]
+            if dx_meta[dx][0] in CHRONIC_CODES:
+                dur = random.choice([30, 60, 90])
+                disp = dur // 30
+            else:
+                dur = random.randint(5, 14)
+                disp = 1
+            psk += 1
+            presc_rows.append((psk, esk, pat, drug_i, dsk(d), dsk(d + timedelta(days=dur)),
+                               dur, disp, round(random.uniform(lo, hi) * disp, 2)))
+    _insert(cur, "dw.fact_prescription",
+            ["prescription_sk", "encounter_sk", "patient_sk", "drug_sk", "start_date_sk",
+             "stop_date_sk", "therapy_duration_days", "dispenses", "total_cost_usd"], presc_rows)
+    cn.commit()
+
     cur.execute("INSERT INTO dw.load_audit (layer, object_name, rows_written, started_at, finished_at, status) "
                 "VALUES (?,?,?,?,?,?)",
                 ("gold", "seed_warehouse (realistic)",
                  len(hosp_rows) + len(payer_rows) + len(dx_rows) + len(prov_rows) + len(pat_rows)
-                 + len(enc_rows) + len(claim_rows) + len(vital_rows), load_ts,
+                 + len(enc_rows) + len(claim_rows) + len(vital_rows)
+                 + len(drug_rows) + len(proc_rows) + len(bridge_rows) + len(presc_rows), load_ts,
                  datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0), "success"))
     cn.commit()
     print("Realistic warehouse seeded:")
     for label, n in [("dim_hospital", len(hosp_rows)), ("dim_payer", len(payer_rows)),
-                     ("dim_diagnosis", len(dx_rows)), ("dim_provider", len(prov_rows)),
-                     ("dim_patient", len(pat_rows)), ("fact_encounter", len(enc_rows)),
-                     ("fact_claim", len(claim_rows)), ("fact_vitals", len(vital_rows))]:
+                     ("dim_diagnosis", len(dx_rows)), ("dim_drug", len(drug_rows)),
+                     ("dim_provider", len(prov_rows)), ("dim_patient", len(pat_rows)),
+                     ("fact_encounter", len(enc_rows)), ("fact_claim", len(claim_rows)),
+                     ("bridge_dx", len(bridge_rows)), ("fact_prescription", len(presc_rows)),
+                     ("fact_vitals", len(vital_rows))]:
         print(f"  {label:16}: {n:>6}")
     cn.close()
     return 0
