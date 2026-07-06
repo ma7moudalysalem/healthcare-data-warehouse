@@ -36,6 +36,26 @@ A separate **streaming path** lifts vital signs from Event Hubs through
 Spark Structured Streaming into Bronze + Silver Delta, mirrored hourly
 into Synapse so Power BI / Streamlit can hit the same model.
 
+## 2a. As-deployed on Azure (budget substitutions)
+
+The architecture above is the *target design*. The delivered system is deployed live on an
+**Azure for Students** subscription, where the enterprise services were substituted for budget
+equivalents **without changing the medallion architecture or the star schema**:
+
+* **Azure SQL Database (Basic)** stands in for the Synapse dedicated SQL pool — the same `dw`
+  star schema (T-SQL DDL in `sql/ddl/azuresql/`), populated by
+  `pipelines/gold/seed_warehouse.py`.
+* **PySpark** (locally / in CI and via `docker/Dockerfile.pipeline`) stands in for Databricks;
+  the Bronze -> Silver -> Gold Spark code is unchanged.
+* **Streamlit on Azure Container Apps** stands in for Power BI, reading the three `dw.vw_*`
+  reporting views live.
+* Vital-signs streaming runs through Azure Event Hubs into a lightweight Python consumer that
+  upserts `dw.fact_vital_signs_minute`.
+
+Live endpoints and the full resource/cost breakdown are in
+[`DEPLOYMENT.md`](../DEPLOYMENT.md). Everything from Section 3 onward describes the design; the
+deployed system realises it within the student-subscription budget.
+
 ## 3. Deliverables by milestone
 
 | Milestone | Output | Where |

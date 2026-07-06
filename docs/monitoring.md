@@ -1,5 +1,10 @@
 # Monitoring & alerting
 
+> **As-designed vs as-deployed.** The ADF / Synapse-DWU signals below describe the target
+> design. As deployed on *Azure for Students*, orchestration is Python scripts (no ADF) and the
+> warehouse is Azure SQL (no Synapse DWU); Container Apps + Log Analytics provide the live
+> telemetry, and `dw.load_audit` still records ETL row-counts. See [`DEPLOYMENT.md`](../DEPLOYMENT.md).
+
 The platform's observability layer is split between three places: ADF
 (orchestration health), Azure Monitor / Log Analytics (resource and
 query telemetry), and the warehouse's own `dw.load_audit` table (ETL

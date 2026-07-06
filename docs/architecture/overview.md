@@ -1,5 +1,11 @@
 # Architecture Overview
 
+> **As-designed vs as-deployed.** This document describes the *target* architecture
+> (Synapse / Databricks / ADF / Event Hubs / Power BI). The graded system is deployed on an
+> *Azure for Students* budget with substitutions: **Azure SQL** for Synapse, **PySpark** for
+> Databricks, **Python loaders** for ADF, **Streamlit** for Power BI. See
+> [`DEPLOYMENT.md`](../../DEPLOYMENT.md) for what actually runs live.
+
 ## End-to-end data flow
 
 ```

@@ -1,5 +1,10 @@
 # Data Dictionary
 
+> **As-designed vs as-deployed.** Column names and grain below are authoritative for both, but
+> the *mechanics* describe the Synapse design. As deployed on Azure SQL, `*_sk` surrogate keys are
+> deterministic MD5 hashes (or `seed_warehouse.py` sequential ints), not Synapse sequences, and
+> there is no hourly Synapse `COPY INTO`. See [`DEPLOYMENT.md`](../../DEPLOYMENT.md).
+
 Canonical column-level reference for the warehouse. Source-system columns
 are documented here too; the Bronze layer keeps source naming, Silver
 normalises, Gold uses the names below.

@@ -17,6 +17,28 @@ A unified data analytics platform for a hospital network operating 5 hospitals a
 - **Power BI dashboards** for hospital utilization, readmission rates, cost analysis
 - Data governance awareness and role-based access patterns
 
+## 🚀 Live deployment (as-deployed on Azure)
+
+This project is **deployed and running** on an *Azure for Students* subscription. Because that
+subscription can't fund the enterprise services in the original design, several components were
+substituted for budget equivalents — **same medallion architecture and star schema, same code
+where possible**:
+
+| Layer | As designed | As deployed |
+|-------|-------------|-------------|
+| Warehouse | Synapse dedicated SQL pool | **Azure SQL Database** (Basic) |
+| Batch compute | Databricks | **PySpark** (local / CI + `docker/Dockerfile.pipeline`) |
+| Orchestration | Azure Data Factory | Python loader scripts |
+| Streaming | Event Hubs + Spark Streaming | Event Hubs + lightweight Python consumer |
+| BI | Power BI | **Streamlit** on Azure Container Apps |
+
+**Live endpoints**
+- Clinical dashboard (Streamlit): https://hcdw-dashboard.jollysea-eb0cfa5c.westeurope.azurecontainerapps.io/
+- Provider API (Flask): https://hcdw-provider-api.jollysea-eb0cfa5c.westeurope.azurecontainerapps.io/
+
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full Azure resource inventory, cost, and redeploy steps.
+The sections below describe the **as-designed** target architecture.
+
 ## Architecture
 
 The platform follows the **Medallion Architecture** deployed on Microsoft Azure:
