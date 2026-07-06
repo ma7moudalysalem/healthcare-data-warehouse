@@ -19,10 +19,12 @@ fact_encounter / fact_claim are full-refresh, since gold_load.py always
 rebuilds them from the complete Silver tables (there is no incremental/
 partial case to reconcile).
 
-Known gap: gold_load.py does not yet stage dim_payer or dim_diagnosis, so
-payer_sk / primary_diagnosis_sk / provider_sk land NULL on every fact row
-here. Those dims keep whatever seed_warehouse.py last populated until a
-future change adds real staging for them.
+gold_load.py now stages dim_payer and dim_diagnosis, and this loader populates
+them (type-1 full refresh) so payer_sk / primary_diagnosis_sk resolve on every
+fact row. provider_sk still lands NULL: encounter/claim provider business keys
+(Synthea provider UUIDs / random claim NPIs) do not map to the provider_api
+registry that dim_provider is built from, so hashing them would produce orphan
+keys - wiring it needs the generators to draw providers from that registry first.
 
 Run:
     HCDW_SQL_SERVER=... HCDW_SQL_DB=... HCDW_SQL_USER=... HCDW_SQL_PASSWORD=... \\
@@ -35,7 +37,6 @@ import hashlib
 import os
 
 import pandas as pd
-import pymssql
 
 from pipelines.logging_config import get_logger
 
@@ -43,6 +44,7 @@ log = get_logger(__name__)
 
 
 def _connect():
+    import pymssql  # lazy: keeps the pure-pandas loader functions importable/testable without the driver
     return pymssql.connect(
         server=os.environ["HCDW_SQL_SERVER"], user=os.environ["HCDW_SQL_USER"],
         password=os.environ["HCDW_SQL_PASSWORD"], database=os.environ["HCDW_SQL_DB"],
@@ -214,6 +216,47 @@ def load_dim_provider_scd2(cur, gold_root: str, load_ts) -> int:
     return len(to_insert)
 
 
+def load_dim_payer(cur, gold_root: str) -> int:
+    """Type-1 full refresh. gold_load stages the distinct claim carriers with an
+    MD5 payer_sk; the schema's payer_bk is unused here (no integer natural key),
+    so it lands NULL.
+    """
+    df = _read(gold_root, "dim_payer_incoming")
+    cur.execute("DELETE FROM dw.dim_payer")
+    rows = [
+        (_int(r.payer_sk), None, r.payer_name, _bit(r.is_government), _bit(r.is_active))
+        for r in df.itertuples(index=False)
+    ]
+    cur.executemany(
+        "INSERT INTO dw.dim_payer (payer_sk, payer_bk, payer_name, is_government, is_active) "
+        "VALUES (%s,%s,%s,%s,%s)",
+        rows,
+    )
+    log.info("loaded dim_payer", extra={"layer": "gold_to_sql", "object_name": "dim_payer",
+                                        "rows_written": len(rows)})
+    return len(rows)
+
+
+def load_dim_diagnosis(cur, gold_root: str) -> int:
+    """Type-1 full refresh. gold_load stages the distinct claim ICD-10 codes,
+    chaptered via the standard ICD-10-CM ranges, with an MD5 diagnosis_sk.
+    """
+    df = _read(gold_root, "dim_diagnosis_incoming")
+    cur.execute("DELETE FROM dw.dim_diagnosis")
+    rows = [
+        (_int(r.diagnosis_sk), r.icd10_code, _n(r.description), _n(r.chapter))
+        for r in df.itertuples(index=False)
+    ]
+    cur.executemany(
+        "INSERT INTO dw.dim_diagnosis (diagnosis_sk, icd10_code, description, chapter) "
+        "VALUES (%s,%s,%s,%s)",
+        rows,
+    )
+    log.info("loaded dim_diagnosis", extra={"layer": "gold_to_sql", "object_name": "dim_diagnosis",
+                                            "rows_written": len(rows)})
+    return len(rows)
+
+
 def load_fact_encounter(cur, gold_root: str) -> int:
     df = _read(gold_root, "fact_encounter")
     cur.execute("DELETE FROM dw.fact_encounter")
@@ -272,7 +315,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gold-root", required=True)
     parser.add_argument("--only", default=None,
-                        help="comma list: dim_hospital,dim_patient,dim_provider,fact_encounter,fact_claim")
+                        help="comma list: dim_hospital,dim_patient,dim_provider,dim_payer,"
+                             "dim_diagnosis,fact_encounter,fact_claim")
     args = parser.parse_args(argv)
     only = set(args.only.split(",")) if args.only else None
 
@@ -290,6 +334,12 @@ def main(argv: list[str] | None = None) -> int:
             cn.commit()
         if not only or "dim_provider" in only:
             load_dim_provider_scd2(cur, args.gold_root, load_ts)
+            cn.commit()
+        if not only or "dim_payer" in only:
+            load_dim_payer(cur, args.gold_root)
+            cn.commit()
+        if not only or "dim_diagnosis" in only:
+            load_dim_diagnosis(cur, args.gold_root)
             cn.commit()
         if not only or "fact_encounter" in only:
             load_fact_encounter(cur, args.gold_root)

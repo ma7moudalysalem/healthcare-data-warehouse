@@ -61,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
             F.col("carrier"),
             F.col("policy_number"),
             F.col("primary_diagnosis_code").alias("primary_icd10_code"),
+            F.col("primary_diagnosis_description"),
             F.to_date("service_date").alias("service_date"),
             F.to_date("submission_date").alias("submission_date"),
             F.to_date("decision_date").alias("decision_date"),
