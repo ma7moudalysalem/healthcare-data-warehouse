@@ -42,3 +42,8 @@ Dockerfile text
 *.jpeg binary
 *.gif binary
 *.pdf binary
+*.pptx binary
+*.potx binary
+*.docx binary
+*.xlsx binary
+*.jar binary
