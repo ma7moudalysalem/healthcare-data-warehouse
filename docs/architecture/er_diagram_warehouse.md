@@ -4,6 +4,10 @@ This is the Synapse / Power BI-facing model. Source-system grain is in
 `er_diagram_oltp.md`. Bronze and Silver layers are flat copies and cleaned
 versions of these same tables; the model below is the analytical contract.
 
+![Warehouse star-schema ER diagram](er_diagram_warehouse.png)
+
+*Rendered PNG (above) of the Mermaid source (below).*
+
 ```mermaid
 erDiagram
     DIM_DATE       ||--o{ FACT_ENCOUNTER         : "start_date_sk"

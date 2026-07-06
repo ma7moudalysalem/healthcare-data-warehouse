@@ -3,6 +3,10 @@
 This is the source operational model that feeds the Bronze layer. The
 warehouse star schema (Gold) is in `er_diagram_warehouse.md`.
 
+![OLTP source ER diagram](er_diagram_oltp.png)
+
+*Rendered PNG (above) of the Mermaid source (below).*
+
 ```mermaid
 erDiagram
     HOSPITAL ||--o{ ENCOUNTER : "hosts"
