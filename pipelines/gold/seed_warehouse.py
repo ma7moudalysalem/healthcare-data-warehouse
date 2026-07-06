@@ -298,7 +298,7 @@ def main(argv=None):
         return int(dt.strftime("%Y%m%d"))
 
     # ---- fact_encounter (correlated) ----
-    enc_rows, enc_idx = [], {}
+    enc_rows, enc_idx, enc_prov = [], {}, {}
     pats = list(pat_meta.keys())
     for i in range(1, args.encounters + 1):
         pat = random.choice(pats)
@@ -341,6 +341,7 @@ def main(argv=None):
                          1 if ec == "inpatient" else 0, 1 if ec == "emergency" else 0, readmit,
                          random.choice(["routine", "routine", "transfer", "ama", None]), load_ts, load_ts))
         enc_idx[i] = (pat, hsk, dx, d, total)
+        enc_prov[i] = prov
     _insert(cur, "dw.fact_encounter",
             ["encounter_sk", "encounter_bk", "patient_sk", "provider_sk", "hospital_sk",
              "primary_diagnosis_sk", "start_date_sk", "end_date_sk", "encounter_class",
@@ -361,6 +362,9 @@ def main(argv=None):
             dx = random.randint(1, len(DIAGNOSES))
             d = now - timedelta(days=random.randint(0, 149), seconds=random.randint(0, 86399))
             ecost = None
+        # claims inherit their encounter's provider; orphan claims get a specialty-matched one
+        claim_prov = (enc_prov.get(enc_sk) if enc_sk
+                      else random.choice(prov_by_spec.get(dx_meta[dx][5]) or any_prov))
         payer = _wchoice(payer_pick)
         pm = payer_meta[payer]
         billed = round((ecost or random.uniform(200, 4000)) * random.uniform(0.9, 1.3), 2)
@@ -383,7 +387,7 @@ def main(argv=None):
             allowed = paid = 0.0
         decided = status in ("approved", "denied", "partially_paid")
         dec = d + timedelta(days=random.randint(3, 28)) if decided else None
-        claim_rows.append((i, str(uuid.uuid4()), f"CLM-{d.year}-{i:08d}", enc_sk, pat, None, hsk, payer, dx,
+        claim_rows.append((i, str(uuid.uuid4()), f"CLM-{d.year}-{i:08d}", enc_sk, pat, claim_prov, hsk, payer, dx,
                            dsk(d), dsk(d), dsk(dec) if dec else None,
                            random.randint(3, 28) if decided else None, status,
                            1 if status == "denied" else 0, 1 if (paid == billed and billed > 0) else 0,
