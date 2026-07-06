@@ -40,5 +40,5 @@ azure-identity>=1.15.0
 pytest>=7.4.0
 flake8>=6.1.0
 
-# Streamlit (optional)
-streamlit>=1.29.0
+# Streamlit (optional) — pinned to match the deployed dashboard image
+streamlit==1.58.0

@@ -229,7 +229,7 @@ def _show(df, **kw) -> None:
                 cfg[c] = st.column_config.NumberColumn(c, format="%.1f%%")
         except Exception:  # noqa: BLE001
             pass
-    st.dataframe(d, use_container_width=True, hide_index=True, column_config=cfg, **kw)
+    st.dataframe(d, width="stretch", hide_index=True, column_config=cfg, **kw)
 
 
 # ---------------------------------------------------------------------------
@@ -314,13 +314,13 @@ def page_operations() -> None:
         mix.columns = ["encounter_class", "count"]
         fig = px.bar(mix, x="encounter_class", y="count", color="encounter_class")
         fig.update_layout(showlegend=False, height=350)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     with right:
         st.subheader("Encounters per day")
         ts = enc.groupby("encounter_date").size().reset_index(name="encounters")
         fig = px.line(ts, x="encounter_date", y="encounters")
         fig.update_layout(height=350)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     st.subheader("Top 10 diagnoses")
     top_dx = (
@@ -335,7 +335,7 @@ def page_operations() -> None:
     fig.update_traces(marker_color="#1e6fd9", textposition="outside")
     fig.update_layout(height=360, margin=dict(l=0, r=0, t=6, b=0), plot_bgcolor="white",
                       paper_bgcolor="white", xaxis_title=None, yaxis_title=None)
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": True})
     st.caption("Hover for the ICD-10 code · drag to zoom · use the toolbar to download.")
 
 
@@ -380,7 +380,7 @@ def page_revenue() -> None:
         mix["status"] = mix["status"].str.replace("_", " ").str.title()
         fig = px.pie(mix, names="status", values="count", hole=0.45)
         fig.update_layout(height=350)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     with right:
         st.subheader("Denial rate by payer · click to drill")
         per_payer = (
@@ -396,7 +396,7 @@ def page_revenue() -> None:
         fig.update_traces(marker_color="#1e6fd9")
         fig.update_layout(height=350, yaxis_title="denial %", plot_bgcolor="white",
                           paper_bgcolor="white", xaxis_title=None)
-        pay_evt = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="rev_payer")
+        pay_evt = st.plotly_chart(fig, width="stretch", on_select="rerun", key="rev_payer")
 
     picked = None
     try:
@@ -423,7 +423,7 @@ def page_revenue() -> None:
               .reset_index()
     )
     fig = px.bar(monthly, x="month", y=["billed_amount", "paid_amount"], barmode="group")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def page_vitals() -> None:
@@ -494,7 +494,7 @@ def page_vitals() -> None:
         fig.for_each_trace(lambda t: t.update(name=_names.get(t.name, t.name)))
         fig.update_layout(plot_bgcolor="white", paper_bgcolor="white",
                           legend_title_text="", margin=dict(l=0, r=0, t=40, b=0))
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True})
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": True})
 
 
 def _count(view: str) -> int:
@@ -538,7 +538,7 @@ def page_home() -> None:
         fig.update_layout(height=300, margin=dict(l=0, r=0, t=6, b=0),
                           plot_bgcolor="white", paper_bgcolor="white",
                           xaxis_title=None, yaxis_title=None)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     with right:
         st.markdown('<div class="hc-label">Encounters by hospital · click a bar to drill</div>',
                     unsafe_allow_html=True)
@@ -552,7 +552,7 @@ def page_home() -> None:
                           plot_bgcolor="white", paper_bgcolor="white",
                           xaxis_title=None, yaxis_title=None,
                           yaxis={"categoryorder": "total ascending"})
-        hosp_evt = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="home_hosp")
+        hosp_evt = st.plotly_chart(fig, width="stretch", on_select="rerun", key="home_hosp")
 
     picked = None
     try:
@@ -581,7 +581,7 @@ def page_home() -> None:
                      color_discrete_sequence=px.colors.sequential.Blues_r)
         fig.update_layout(height=260, showlegend=False, margin=dict(l=0, r=0, t=6, b=0),
                           plot_bgcolor="white", paper_bgcolor="white", xaxis_title=None, yaxis_title=None)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     with b:
         if clm is not None and len(clm):
             sm = clm["status"].value_counts().reset_index()
@@ -590,7 +590,7 @@ def page_home() -> None:
             fig = px.pie(sm, names="status", values="count", hole=0.55,
                          color_discrete_sequence=px.colors.sequential.Blues_r)
             fig.update_layout(height=260, margin=dict(l=0, r=0, t=6, b=0), paper_bgcolor="white")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 
 HOSP_COORDS = {
@@ -653,7 +653,7 @@ def page_map() -> None:
     fig.update_layout(mapbox_style="open-street-map", margin=dict(l=0, r=0, t=0, b=0),
                       coloraxis_colorbar=dict(title=_cbtitle, thickness=12, len=0.55, x=0.99))
 
-    event = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="hospmap")
+    event = st.plotly_chart(fig, width="stretch", on_select="rerun", key="hospmap")
 
     picked = None
     try:
