@@ -71,7 +71,16 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-      #MainMenu, header[data-testid="stHeader"], footer {visibility: hidden;}
+      /* Hide the toolbar clutter (deploy button, main menu) + footer, but NEVER
+         the whole header: the control that re-opens a COLLAPSED sidebar
+         (stExpandSidebarButton) lives inside the header toolbar, so hiding the
+         header would trap the sidebar closed with no way to bring it back. */
+      [data-testid="stToolbarActions"], [data-testid="stAppDeployButton"],
+      [data-testid="stMainMenu"], #MainMenu, footer {display: none !important;}
+      header[data-testid="stHeader"] {background: transparent !important;}
+      /* keep the sidebar collapse/expand controls always visible & discoverable */
+      [data-testid="stSidebarCollapseButton"], [data-testid="stExpandSidebarButton"]
+        {visibility: visible !important; opacity: 1 !important;}
       .block-container {padding-top: 0.8rem; max-width: 1340px;}
       :root {--ink:#0f172a; --muted:#64748b; --line:#e5e9f0; --accent:#1e6fd9; --bg:#f7f9fc;}
       html, body, [class*="css"] {font-family:-apple-system,"Segoe UI",Roboto,
