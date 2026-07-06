@@ -90,3 +90,6 @@ htmlcov/
 *.fdb_latexmk
 *.synctex.gz
 
+# Local WSL/PySpark bootstrap scripts (machine-specific: hardcode /mnt/d + $HOME/hcdw)
+/hcdw_*.sh
+

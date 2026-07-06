@@ -26,7 +26,11 @@ import pymssql  # noqa: E402
 from azure.eventhub import EventHubConsumerClient  # noqa: E402
 
 HOSP_SK = {"HSP-CAI-01": 1, "HSP-CAI-02": 2, "HSP-GIZ-01": 3, "HSP-ALX-01": 4, "HSP-MNF-01": 5}
-N_PATIENTS = 2000
+# MUST be <= the number of patients seeded into dim_patient. If it exceeds the seeded
+# count, streamed rows get a patient_sk with no matching dim_patient row and are
+# silently dropped by vw_vital_signs_minute's INNER JOIN. Align with the value passed
+# to seed_warehouse.py --patients via the HCDW_N_PATIENTS env var.
+N_PATIENTS = int(os.environ.get("HCDW_N_PATIENTS", "2000"))
 _buckets = {}
 _lock = threading.Lock()
 
