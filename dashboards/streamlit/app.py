@@ -62,28 +62,7 @@ st.set_page_config(
     page_title="Healthcare DW — Clinical Intelligence Platform",
     page_icon="🩺",
     layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-# One-time repair: Streamlit persists the "sidebar collapsed" flag in the browser's
-# localStorage, which survives cache clears — so a user who once collapsed the sidebar
-# stayed stuck with no reliable way to re-open it. Clear that flag (and reload once) so
-# the sidebar re-opens; with the collapse toggle hidden in the CSS below, it stays open.
-st.components.v1.html(
-    """
-    <script>
-    (function () {
-      try {
-        var ls = window.parent.localStorage, cleared = false;
-        Object.keys(ls).forEach(function (k) {
-          if (k.indexOf('stSidebarCollapsed') === 0) { ls.removeItem(k); cleared = true; }
-        });
-        if (cleared) { window.parent.location.reload(); }
-      } catch (e) {}
-    })();
-    </script>
-    """,
-    height=0,
+    initial_sidebar_state="collapsed",
 )
 
 # ---------------------------------------------------------------------------
@@ -99,29 +78,12 @@ st.markdown(
       [data-testid="stToolbarActions"], [data-testid="stAppDeployButton"],
       [data-testid="stMainMenu"], #MainMenu, footer {display: none !important;}
       header[data-testid="stHeader"] {background: transparent !important;}
-      /* The control that RE-OPENS a collapsed sidebar (stExpandSidebarButton) is,
-         by default, a tiny faint chevron users miss. Pin it to the top-left corner
-         as a prominent, high-contrast teal button so the sidebar can always come back. */
-      /* The filter + page-navigation sidebar is used constantly, and users kept
-         losing it because Streamlit's re-open chevron is faint/unreliable. Remove
-         the collapse toggle entirely so the sidebar is ALWAYS visible and can never
-         disappear (it loads expanded via initial_sidebar_state). A styled re-open
-         button is kept as a belt-and-suspenders fallback. */
-      [data-testid="stSidebarCollapseButton"] {display: none !important;}
-      section[data-testid="stSidebar"][aria-expanded="false"] {
-        transform: none !important; margin-left: 0 !important; min-width: 300px !important;
-        width: 300px !important; visibility: visible !important;}
-      [data-testid="stExpandSidebarButton"] {
-        display: flex !important; visibility: visible !important; opacity: 1 !important;
-        position: fixed !important; top: 0.55rem !important; left: 0.55rem !important;
-        z-index: 2147483000 !important;
-        background: #0f766e !important; border: none !important; border-radius: 9px !important;
-        width: 42px !important; height: 42px !important; padding: 0 !important;
-        align-items: center !important; justify-content: center !important;
-        box-shadow: 0 3px 10px rgba(15,23,42,0.22) !important;}
-      [data-testid="stExpandSidebarButton"] [data-testid="stIconMaterial"],
-      [data-testid="stExpandSidebarButton"] span {
-        color: #ffffff !important; font-size: 24px !important;}
+      /* No collapsible sidebar: filters + page navigation live in the main body, so
+         the (now-empty) sidebar and both of its toggle controls are hidden entirely.
+         This removes the whole "sidebar disappeared and won't come back" problem. */
+      [data-testid="stSidebar"], [data-testid="stSidebarCollapseButton"],
+      [data-testid="stExpandSidebarButton"], [data-testid="stSidebarCollapsedControl"] {
+        display: none !important;}
       .block-container {padding-top: 0.8rem; max-width: 1340px;}
       :root {--ink:#0f172a; --muted:#64748b; --line:#e5e9f0; --accent:#1e6fd9; --bg:#f7f9fc;}
       html, body, [class*="css"] {font-family:-apple-system,"Segoe UI",Roboto,
@@ -146,20 +108,14 @@ st.markdown(
         border-radius:10px; padding:12px 16px;}
       div[data-testid="stMetricLabel"] p {color:var(--muted); font-size:.8rem; font-weight:600;}
       div[data-testid="stMetricValue"] {color:var(--ink); font-weight:700; font-size:1.55rem;}
-      /* sidebar */
-      section[data-testid="stSidebar"] {background:#0f172a; border-right:1px solid #1e293b;}
-      section[data-testid="stSidebar"] * {color:#cbd5e1 !important;}
-      section[data-testid="stSidebar"] .stRadio [data-baseweb="radio"] {padding:3px 0;}
+      /* main-body page navigation (horizontal radio styled as a tab bar) */
+      div[data-testid="stRadio"] [role="radiogroup"] {gap:6px; flex-wrap:wrap;}
+      div[data-testid="stRadio"] label {background:#fff; border:1px solid var(--line);
+        border-radius:8px; padding:5px 14px; margin:0; cursor:pointer;}
       /* panels */
       .hc-panel {background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
     </style>
     """,
-    unsafe_allow_html=True,
-)
-st.sidebar.markdown(
-    "<div style='padding:8px 4px 16px 4px; border-bottom:1px solid #1e293b; margin-bottom:10px;'>"
-    "<div style='font-size:1.15rem; font-weight:700; color:#fff;'>HealthCare&nbsp;DW</div>"
-    "<div style='font-size:.72rem; color:#7b8aa0; letter-spacing:.04em;'>CLINICAL INTELLIGENCE PLATFORM</div></div>",
     unsafe_allow_html=True,
 )
 
@@ -283,26 +239,10 @@ def _show(df, **kw) -> None:
 
 
 # ---------------------------------------------------------------------------
-#   Sidebar filters
+#   Filter data (the Hospital / Date widgets render in the main-body bar below)
 # ---------------------------------------------------------------------------
-st.sidebar.title("Filters")
 hospitals_df = _query("SELECT DISTINCT hospital_name FROM dw.vw_encounter_enriched ORDER BY hospital_name")
 hospitals = ["All"] + (hospitals_df["hospital_name"].tolist() if not hospitals_df.empty else [])
-selected_hospital = st.sidebar.selectbox("Hospital", hospitals, index=0)
-
-date_range = st.sidebar.date_input(
-    "Date range",
-    value=(_cairo_now() - pd.Timedelta(days=90), _cairo_now()),
-)
-if isinstance(date_range, tuple) and len(date_range) == 2:
-    from_date, to_date = date_range
-else:
-    from_date = _cairo_now() - pd.Timedelta(days=90)
-    to_date = _cairo_now()
-
-st.sidebar.caption(
-    "Connected to Synapse" if _connect() is not None else "Demo mode (local Parquet)"
-)
 
 
 # ---------------------------------------------------------------------------
@@ -310,7 +250,6 @@ st.sidebar.caption(
 # ---------------------------------------------------------------------------
 PAGES = ["Home", "Hospital Operations", "Revenue & Claims", "Live Vital Signs",
          "Egypt Map", "AI Assistant", "System Health"]
-page = st.sidebar.radio("Page", PAGES)
 
 
 def _filter_clause() -> tuple[str, list]:
@@ -858,5 +797,19 @@ st.markdown(
     </div>""",
     unsafe_allow_html=True,
 )
+
+# --- Navigation + filters live here, in the main body (no collapsible sidebar) ---
+page = st.radio("Page", PAGES, horizontal=True, label_visibility="collapsed")
+_fc1, _fc2, _fc3 = st.columns([3, 3, 4])
+with _fc1:
+    selected_hospital = st.selectbox("Hospital", hospitals, index=0)
+with _fc2:
+    date_range = st.date_input(
+        "Date range", value=(_cairo_now() - pd.Timedelta(days=90), _cairo_now()))
+if isinstance(date_range, tuple) and len(date_range) == 2:
+    from_date, to_date = date_range
+else:
+    from_date, to_date = _cairo_now() - pd.Timedelta(days=90), _cairo_now()
+st.divider()
 
 PAGE_FUNCS[page]()
