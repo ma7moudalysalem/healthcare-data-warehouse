@@ -93,3 +93,6 @@ htmlcov/
 # Local WSL/PySpark bootstrap scripts (machine-specific: hardcode /mnt/d + $HOME/hcdw)
 /hcdw_*.sh
 
+# Generated ydata-profiling reports (large, regenerable by running the EDA notebook)
+notebooks/*_profile.html
+
