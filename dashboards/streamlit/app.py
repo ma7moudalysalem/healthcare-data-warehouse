@@ -78,9 +78,26 @@ st.markdown(
       [data-testid="stToolbarActions"], [data-testid="stAppDeployButton"],
       [data-testid="stMainMenu"], #MainMenu, footer {display: none !important;}
       header[data-testid="stHeader"] {background: transparent !important;}
-      /* keep the sidebar collapse/expand controls always visible & discoverable */
-      [data-testid="stSidebarCollapseButton"], [data-testid="stExpandSidebarButton"]
-        {visibility: visible !important; opacity: 1 !important;}
+      /* The control that RE-OPENS a collapsed sidebar (stExpandSidebarButton) is,
+         by default, a tiny faint chevron users miss. Pin it to the top-left corner
+         as a prominent, high-contrast teal button so the sidebar can always come back. */
+      /* stExpandSidebarButton IS the <button>; its icon is a faint Material-font
+         glyph in a span. Turn the whole thing into a bold teal button with a white
+         icon, pinned top-left, so re-opening the sidebar is obvious. */
+      [data-testid="stExpandSidebarButton"] {
+        display: flex !important; visibility: visible !important; opacity: 1 !important;
+        position: fixed !important; top: 0.55rem !important; left: 0.55rem !important;
+        z-index: 2147483000 !important;
+        background: #0f766e !important; border: none !important; border-radius: 9px !important;
+        width: 42px !important; height: 42px !important; padding: 0 !important;
+        align-items: center !important; justify-content: center !important;
+        box-shadow: 0 3px 10px rgba(15,23,42,0.22) !important;}
+      [data-testid="stExpandSidebarButton"]:hover {background: #0b5e57 !important;}
+      [data-testid="stExpandSidebarButton"] [data-testid="stIconMaterial"],
+      [data-testid="stExpandSidebarButton"] span {
+        color: #ffffff !important; fill: #ffffff !important; font-size: 24px !important;}
+      /* keep the collapse (<<) toggle discoverable inside the open sidebar */
+      [data-testid="stSidebarCollapseButton"] {visibility: visible !important; opacity: 1 !important;}
       .block-container {padding-top: 0.8rem; max-width: 1340px;}
       :root {--ink:#0f172a; --muted:#64748b; --line:#e5e9f0; --accent:#1e6fd9; --bg:#f7f9fc;}
       html, body, [class*="css"] {font-family:-apple-system,"Segoe UI",Roboto,
