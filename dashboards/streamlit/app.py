@@ -108,10 +108,22 @@ st.markdown(
         border-radius:10px; padding:12px 16px;}
       div[data-testid="stMetricLabel"] p {color:var(--muted); font-size:.8rem; font-weight:600;}
       div[data-testid="stMetricValue"] {color:var(--ink); font-weight:700; font-size:1.55rem;}
-      /* main-body page navigation (horizontal radio styled as a tab bar) */
-      div[data-testid="stRadio"] [role="radiogroup"] {gap:6px; flex-wrap:wrap;}
-      div[data-testid="stRadio"] label {background:#fff; border:1px solid var(--line);
-        border-radius:8px; padding:5px 14px; margin:0; cursor:pointer;}
+      /* main-body page navigation (horizontal radio styled as a real tab bar) */
+      div[data-testid="stRadio"] [role="radiogroup"] {gap:8px; flex-wrap:wrap;}
+      div[data-testid="stRadio"] [role="radiogroup"] > label {background:#fff;
+        border:1px solid var(--line); border-radius:8px; padding:7px 16px; margin:0;
+        cursor:pointer; transition:background .12s, border-color .12s;}
+      div[data-testid="stRadio"] [role="radiogroup"] > label:hover {border-color:var(--accent);}
+      /* hide the radio circle so each option reads as a clickable tab */
+      div[data-testid="stRadio"] [role="radiogroup"] > label > div:first-child {display:none !important;}
+      /* highlight the ACTIVE page so it's obvious where you are */
+      div[data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked)
+        {background:var(--accent); border-color:var(--accent);}
+      div[data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked) p
+        {color:#fff !important; font-weight:650;}
+      /* the "Pages" navigation caption */
+      .hc-nav {font-weight:700; font-size:.92rem; color:var(--ink); margin:2px 0 7px;}
+      .hc-nav span {color:var(--muted); font-weight:500; font-size:.8rem;}
       /* panels */
       .hc-panel {background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
     </style>
@@ -799,7 +811,11 @@ st.markdown(
 )
 
 # --- Navigation + filters live here, in the main body (no collapsible sidebar) ---
-page = st.radio("Page", PAGES, horizontal=True, label_visibility="collapsed")
+st.markdown(
+    '<div class="hc-nav">📑 Pages <span>— click a tab to switch between pages</span></div>',
+    unsafe_allow_html=True,
+)
+page = st.radio("Page", PAGES, horizontal=True, label_visibility="collapsed", key="page_nav")
 _fc1, _fc2, _fc3 = st.columns([3, 3, 4])
 with _fc1:
     selected_hospital = st.selectbox("Hospital", hospitals, index=0)

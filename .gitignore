@@ -96,3 +96,6 @@ htmlcov/
 # Generated ydata-profiling reports (large, regenerable by running the EDA notebook)
 notebooks/*_profile.html
 
+# Assembled submission package (deliverables/binaries, kept local — not source)
+SUBMISSION/
+
