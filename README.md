@@ -17,12 +17,16 @@ A unified data analytics platform for a hospital network operating 5 hospitals a
 - **Power BI dashboards** for hospital utilization, readmission rates, cost analysis
 - Data governance awareness and role-based access patterns
 
-## 🚀 Live deployment (as-deployed on Azure)
+📘 **[Developer guide (PDF)](docs/Healthcare_Data_Warehouse_Developer_Guide.pdf)** · 🖥️ **[Presentation](docs/HCDW_Presentation.pptx)** · 🗂️ **[Architecture](docs/architecture/overview.md)**
 
-This project is **deployed and running** on an *Azure for Students* subscription. Because that
-subscription can't fund the enterprise services in the original design, several components were
-substituted for budget equivalents — **same medallion architecture and star schema, same code
-where possible**:
+<p align="center"><img src="docs/architecture/er_diagram_warehouse.png" width="760" alt="Warehouse star schema"/></p>
+
+## Deployment on Azure
+
+The project was deployed end to end on an *Azure for Students* subscription. Because that
+subscription cannot fund the enterprise services in the original design, several components were
+substituted for budget equivalents, with **the same medallion architecture and star schema, and the
+same code where possible**:
 
 | Layer | As designed | As deployed |
 |-------|-------------|-------------|
@@ -32,11 +36,10 @@ where possible**:
 | Streaming | Event Hubs + Spark Streaming | Event Hubs + lightweight Python consumer |
 | BI | Power BI | **Streamlit** on Azure Container Apps |
 
-**Live endpoints**
-- Clinical dashboard (Streamlit): https://hcdw-dashboard.jollysea-eb0cfa5c.westeurope.azurecontainerapps.io/
-- Provider API (Flask): https://hcdw-provider-api.jollysea-eb0cfa5c.westeurope.azurecontainerapps.io/
-
-See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full Azure resource inventory, cost, and redeploy steps.
+The clinical dashboard (Streamlit) and the provider API (Flask) ran on Azure Container Apps; the
+hosted demo is offline now that the student subscription has ended, and everything runs locally
+with Docker (see below). **[DEPLOYMENT.md](DEPLOYMENT.md)** has the full Azure resource inventory,
+cost, and redeploy steps.
 The sections below describe the **as-designed** target architecture.
 
 ## Architecture
@@ -67,33 +70,6 @@ The platform follows the **Medallion Architecture** deployed on Microsoft Azure:
 | 5 | Claims & Billing | JSON (Custom) | 200K claims |
 | 6 | Vital Signs (IoT) | JSON (Stream) | Continuous |
 
-## Project Structure
-
-```
-healthcare-data-warehouse/
-├── src/
-│   ├── generators/          # generate_claims.py, simulate_vitals.py, provider_api.py
-│   └── synthea/             # Synthea configuration and generation scripts
-├── notebooks/               # EDA notebook, Databricks PySpark notebooks
-├── sql/
-│   ├── ddl/                 # CREATE TABLE, indexes, constraints
-│   ├── queries/             # Analytical queries (10+)
-│   └── stored_procedures/   # Stored procedures
-├── pipelines/
-│   └── adf_templates/       # ADF ARM templates, pipeline documentation
-├── dashboards/              # Power BI .pbix, Streamlit app, screenshots
-├── docs/
-│   ├── architecture/        # Architecture diagrams
-│   └── data_dictionary/     # Data dictionary, final report
-├── tests/                   # pytest unit tests, SQL validation scripts
-├── docker/                  # Dockerfile, docker-compose.yml
-├── data/
-│   ├── raw/                 # Raw source data (not tracked in git)
-│   ├── cleaned/             # Cleaned Parquet files (not tracked)
-│   └── gold/                # Gold layer exports (not tracked)
-└── config/                  # Configuration files
-```
-
 ## Technology Stack
 
 | Category | Technologies & Tools |
@@ -109,7 +85,7 @@ healthcare-data-warehouse/
 | DevOps | Git, GitHub, GitHub Actions (CI/CD), Docker, Docker Compose |
 | Monitoring | Azure Monitor, Log Analytics, Azure Alerts, Application Insights |
 
-## Repository layout (after milestones)
+## Repository layout
 
 ```
 healthcare-data-warehouse/
@@ -238,4 +214,4 @@ This project uses **Synthea** -- an open-source synthetic patient generator -- t
 
 ## License
 
-This project is developed as part of the DEPI (Digital Egypt Pioneers Initiative) Microsoft Data Engineer Track.
+[MIT](LICENSE). Developed as the capstone project of the DEPI (Digital Egypt Pioneers Initiative) Microsoft Data Engineer track.
